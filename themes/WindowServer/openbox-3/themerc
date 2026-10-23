@@ -1,0 +1,133 @@
+!# WindowServer :: placeholder theme
+!#
+!# A placeholder macOS X-style theme for WindowServerWM. This file is a system
+!# asset at a hardcoded location (not user-selectable) — see WINDOWSERVERWM_*
+!# constants in obrender/theme.c and openbox/openbox.c. To use a development
+!# copy, unpack a theme tree under WINDOWSERVERWM_THEMES_PATH:
+!#     <root>/<name>/openbox-3/themerc
+!#
+!# Layout follows macOS X: traffic-light buttons (close, minimize, zoom) down
+!# the left side of the titlebar, title centered in the bar. The three
+!# buttons below are colored via per-button image colors over the builtin
+!# glyph masks (X, bottom bar, zoom box) — placeholder art until the real
+!# handler/button artwork exists.
+!#
+!# The centered title comes from config titleLayout CIML (see openbox/config.c
+!# and the hardcoded rc.xml) + the center beings justify below.
+
+!# ---------------------------------------------------------------- general
+border.width: 1
+padding.width: 2
+padding.height: 4
+window.handle.width: 0
+window.client.padding.width: 0
+window.client.padding.height: 0
+menu.overlap: 0
+*.justify: center
+*.font: shadow=n
+
+!# ---------------------------------------------------------------- borders
+window.active.border.color: #9F9FA3
+window.inactive.border.color: #AFAFB3
+window.active.title.separator.color: #B7B7BB
+window.inactive.title.separator.color: #C6C6CA
+window.active.client.color: #FFFFFF
+window.inactive.client.color: #FFFFFF
+
+!# ---------------------------------------------------------------- title bar
+window.active.title.bg: Flat Gradient Vertical
+window.active.title.bg.color: #EFEFEF
+window.active.title.bg.colorTo: #DED8D2
+window.inactive.title.bg: Flat Solid
+window.inactive.title.bg.color: #DEDEDE
+
+!# ---------------------------------------------------------------- title text
+window.active.label.text.color: #000000
+window.inactive.label.text.color: #737373
+window.active.label.bg: Parentrelative
+window.inactive.label.bg: Parentrelative
+
+!# ---------------------------------------------------------------- buttons
+!# Slots show the title bar through them (so the WORK area looks like bare
+!# traffic lights on the bar); glyphs are colored per button below.
+window.active.button.unpressed.bg: Parentrelative
+window.active.button.pressed.bg: Parentrelative
+window.active.button.hover.bg: Parentrelative
+window.active.button.disabled.bg: Parentrelative
+window.active.button.toggled.unpressed.bg: Parentrelative
+window.active.button.toggled.pressed.bg: Parentrelative
+window.active.button.toggled.hover.bg: Parentrelative
+window.inactive.button.unpressed.bg: Parentrelative
+window.inactive.button.pressed.bg: Parentrelative
+window.inactive.button.hover.bg: Parentrelative
+window.inactive.button.disabled.bg: Parentrelative
+window.inactive.button.toggled.unpressed.bg: Parentrelative
+window.inactive.button.toggled.pressed.bg: Parentrelative
+window.inactive.button.toggled.hover.bg: Parentrelative
+
+!# glyph colors as the default for anything a per-button key misses
+window.active.button.unpressed.image.color: #404040
+window.active.button.pressed.image.color: #101010
+window.active.button.hover.image.color: #101010
+window.active.button.disabled.image.color: #C0C0C0
+window.active.button.toggled.unpressed.image.color: #101010
+window.active.button.toggled.pressed.image.color: #101010
+window.active.button.toggled.hover.image.color: #101010
+window.inactive.button.unpressed.image.color: #A0A0A0
+window.inactive.button.pressed.image.color: #909090
+window.inactive.button.hover.image.color: #8A8A8A
+window.inactive.button.disabled.image.color: #A0A0A0
+window.inactive.button.toggled.unpressed.image.color: #909090
+window.inactive.button.toggled.pressed.image.color: #808080
+window.inactive.button.toggled.hover.image.color: #8A8A8A
+
+!# traffic lights (close = red, iconify/minimize = yellow, max/zoom = green)
+window.active.button.close.unpressed.image.color: #E1564B
+window.active.button.close.pressed.image.color: #B3463E
+window.active.button.close.hover.image.color: #E1564B
+window.active.button.close.disabled.image.color: #C0C0C0
+window.active.button.iconify.unpressed.image.color: #F2B33F
+window.active.button.iconify.pressed.image.color: #C2913A
+window.active.button.iconify.hover.image.color: #F2B33F
+window.active.button.iconify.disabled.image.color: #C0C0C0
+window.active.button.max.unpressed.image.color: #5DC248
+window.active.button.max.pressed.image.color: #4CA13D
+window.active.button.max.hover.image.color: #5DC248
+window.active.button.max.disabled.image.color: #C0C0C0
+window.active.button.max.toggled.unpressed.image.color: #5DC248
+window.active.button.max.toggled.pressed.image.color: #4CA13D
+window.active.button.max.toggled.hover.image.color: #5DC248
+!# inactive windows: all buttons gray, like macOS X
+window.inactive.button.close.unpressed.image.color: #A0A0A0
+window.inactive.button.close.pressed.image.color: #909090
+window.inactive.button.close.hover.image.color: #8A8A8A
+window.inactive.button.close.disabled.image.color: #A0A0A0
+window.inactive.button.iconify.unpressed.image.color: #A0A0A0
+window.inactive.button.iconify.pressed.image.color: #909090
+window.inactive.button.iconify.hover.image.color: #8A8A8A
+window.inactive.button.iconify.disabled.image.color: #A0A0A0
+window.inactive.button.max.unpressed.image.color: #A0A0A0
+window.inactive.button.max.pressed.image.color: #909090
+window.inactive.button.max.hover.image.color: #8A8A8A
+window.inactive.button.max.disabled.image.color: #A0A0A0
+window.inactive.button.max.toggled.unpressed.image.color: #909090
+window.inactive.button.max.toggled.pressed.image.color: #808080
+window.inactive.button.max.toggled.hover.image.color: #8A8A8A
+
+!# ---------------------------------------------------------------- menus
+menu.border.color: #9F9FA3
+menu.border.width: 1
+menu.title.bg: Flat Solid
+menu.title.bg.color: #C8C8C8
+menu.title.text.color: #000000
+menu.items.bg: Flat Solid
+menu.items.bg.color: #FFFFFF
+menu.items.text.color: #000000
+menu.items.disabled.text.color: #ABABAB
+menu.items.active.bg: Flat Solid
+menu.items.active.bg.color: #759EF3
+menu.items.active.text.color: #FFFFFF
+menu.items.active.disabled.text.color: #CDCEF2
+menu.bullet.image.color: #000000
+menu.bullet.selected.image.color: #FFFFFF
+menu.separator.color: #D0D0D0

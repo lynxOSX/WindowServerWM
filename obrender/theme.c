@@ -31,6 +31,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* The theme is not user-configurable: it is a system asset at a hardcoded
+   location. Theme names resolve inside this root:
+   <root>/<name>/openbox-3/themerc. The environment override exists just for
+   running a development build against an unpacked theme tree. */
+#define WINDOWSERVERWM_THEMES_PATH "/Library/WindowServerWM/Themes"
+
 struct fallbacks {
     RrAppearance *focused_disabled;
     RrAppearance *unfocused_disabled;
@@ -1124,16 +1130,29 @@ static XrmDatabase loaddb(const gchar *name, gchar **path)
             *path = g_path_get_dirname(s);
         g_free(s);
     } else {
+        /* WindowServerWM: theme names resolve in the hardcoded system theme
+           root first (see above). The legacy paths that follow are only for
+           development fallback so this build still runs outside lynxOS. */
+        const gchar *themes_root = g_getenv("WINDOWSERVERWM_THEMES_PATH");
+        if (!themes_root) themes_root = WINDOWSERVERWM_THEMES_PATH;
+
         ObtPaths *p;
+
+        s = g_build_filename(themes_root, name, "openbox-3", "themerc", NULL);
+        if ((db = XrmGetFileDatabase(s)))
+            *path = g_path_get_dirname(s);
+        g_free(s);
 
         p = obt_paths_new();
 
         /* XXX backwards compatibility, remove me sometime later */
+        if (!db) {
         s = g_build_filename(g_get_home_dir(), ".themes", name,
                              "openbox-3", "themerc", NULL);
         if ((db = XrmGetFileDatabase(s)))
             *path = g_path_get_dirname(s);
         g_free(s);
+        }
 
         for (it = obt_paths_data_dirs(p); !db && it; it = g_slist_next(it))
         {

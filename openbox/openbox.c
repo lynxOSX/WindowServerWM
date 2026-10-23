@@ -52,6 +52,11 @@
 #include "obt/keyboard.h"
 #include "obt/xml.h"
 
+/* The configuration is a system asset at a hardcoded location, mirror of the
+   theme (see obrender/theme.c). Not user-editable, no config manager. The
+   environment override exists just for running a development build. */
+#define WINDOWSERVERWM_CONFIG_PATH "/Library/WindowServerWM/rc.xml"
+
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
 #endif
@@ -241,9 +246,17 @@ gint main(gint argc, gchar **argv)
                 /* start up config which sets up with the parser */
                 config_startup(i);
 
-                /* parse/load user options */
+                /* parse/load user options: the hardcoded system config
+                   first, the standard XDG search as a fallback for
+                   development builds that didn't install it */
                 if ((config_file &&
                      obt_xml_load_file(i, config_file, "openbox_config")) ||
+                    (getenv("WINDOWSERVERWM_CONFIG_PATH") ?
+                     obt_xml_load_file(i,
+                                       getenv("WINDOWSERVERWM_CONFIG_PATH"),
+                                       "openbox_config") : FALSE) ||
+                    obt_xml_load_file(i, WINDOWSERVERWM_CONFIG_PATH,
+                                      "openbox_config") ||
                     obt_xml_load_config_file(i, "openbox", "rc.xml",
                                              "openbox_config"))
                 {

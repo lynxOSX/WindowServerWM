@@ -15,7 +15,7 @@ pixmapdir       = $(datadir)/pixmaps
 xsddir          = $(datadir)/openbox
 appsdir         = $(datadir)/applications
 
-theme = Clearlooks
+theme = WindowServer
 
 AUTOMAKE_OPTIONS = subdir-objects foreign
 
@@ -377,6 +377,10 @@ dist_docxbm_DATA = \
 
 
 ## themes ##
+
+windowserver_themedir = $(themedir)/WindowServer/openbox-3
+dist_windowserver_theme_DATA= \
+	themes/WindowServer/openbox-3/themerc
 
 clearlooks_themedir = $(themedir)/Clearlooks/openbox-3
 dist_clearlooks_theme_DATA= \

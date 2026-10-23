@@ -1200,12 +1200,16 @@ static void layout_title(ObFrame *self)
        do the ones before the label, then after the label,
        i will be +1 the first time through when working to the left,
        and -1 the second time through when working to the right */
+    /* left edge the title text can start at without overlapping the
+       buttons that sit on the left of it (macOS layout) */
+    gint label_minx;
     for (i = 1; i >= -1; i-=2) {
         gint x;
         ObFrameContext *firstcon;
 
         if (i > 0) {
             x = left;
+            label_minx = x;
             lc = config_title_layout;
             firstcon = &self->leftmost;
         } else {
@@ -1220,6 +1224,8 @@ static void layout_title(ObFrame *self)
                 if (i > 0) {
                     self->label_on = TRUE;
                     self->label_x = x;
+                    /* buttons placed so far are at [left, x) */
+                    label_minx = x;
                 }
                 break; /* break the for loop, do other side of label */
             } else if (*lc == 'N') {
@@ -1245,6 +1251,17 @@ static void layout_title(ObFrame *self)
                 continue; /* don't set firstcon */
             firstcon = NULL;
         }
+    }
+
+    /* macOS-style centered title: when there are no buttons after the label,
+       the label region holds the width after the buttons that sit before it,
+       and the centered justification of the title text places it in the
+       center of the whole titlebar. Centering is undone if the title would
+       slide under the buttons on the left. */
+    if (self->label_on && self->rightmost == OB_FRAME_CONTEXT_NONE) {
+        gint x = (self->width - self->label_width) / 2;
+        if (x < label_minx) x = label_minx;
+        self->label_x = x;
     }
 
     /* position and map the elements */
