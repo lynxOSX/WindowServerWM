@@ -24,6 +24,9 @@
 #ifdef USE_IMLIB2
 #include <Imlib2.h>
 #endif
+#ifdef USE_LIBPNG
+#include <png.h>
+#endif
 #ifdef USE_LIBRSVG
 #include <cairo.h>
 #include <librsvg/rsvg.h>
@@ -509,6 +512,148 @@ ImlibLoader* LoadWithImlib(gchar *path,
 }
 #endif  /* USE_IMLIB2 */
 
+#if defined(USE_LIBPNG)
+typedef struct _PngLoader PngLoader;
+
+struct _PngLoader
+{
+    RrPixel32 *pixel_data;
+};
+
+void DestroyPngLoader(PngLoader *loader)
+{
+    if (!loader)
+        return;
+
+    if (loader->pixel_data)
+        g_free(loader->pixel_data);
+    g_slice_free(PngLoader, loader);
+}
+
+/* libpng gives RGBA; RrPixel32 is ARGB non-premultiplied, so convert
+   explicitly instead of feeding libpng rows straight into the pixel buffer */
+static void ConvertPngToPixels(const png_byte *rgba, RrPixel32 *out,
+                               gint width, gint height)
+{
+    gint x, y;
+    for (y = 0; y < height; ++y) {
+        const png_byte *row = rgba + (png_size_t)y * width * 4;
+        for (x = 0; x < width; ++x) {
+            guchar a = row[x*4 + 3];
+            guchar r = row[x*4 + 0];
+            guchar g = row[x*4 + 1];
+            guchar b = row[x*4 + 2];
+            out[x] =
+                ((r << RrDefaultRedOffset) +
+                 (g << RrDefaultGreenOffset) +
+                 (b << RrDefaultBlueOffset) +
+                 (a << RrDefaultAlphaOffset));
+        }
+        out += width;
+    }
+}
+
+PngLoader* LoadWithPng(gchar *path,
+                       RrPixel32 **pixel_data,
+                       gint *width,
+                       gint *height)
+{
+    PngLoader *loader = NULL;
+    FILE *fp = NULL;
+    png_structp png = NULL;
+    png_infop info = NULL;
+    png_bytep *rows = NULL;
+    png_bytep scratch = NULL;
+    png_uint_32 w, h;
+    gint bit_depth, color_type;
+    RrPixel32 *data = NULL;
+    png_uint_32 y;
+
+    fp = fopen(path, "rb");
+    if (!fp) return NULL;
+
+    /* let libpng check the signature */
+    {
+        png_byte sig[8];
+        if (fread(sig, 1, 8, fp) != 8 || png_sig_cmp(sig, 0, 8)) {
+            fclose(fp);
+            return NULL;
+        }
+    }
+
+    png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png) { fclose(fp); return NULL; }
+    info = png_create_info_struct(png);
+    if (!info) {
+        png_destroy_read_struct(&png, NULL, NULL);
+        fclose(fp);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png))) {
+        png_destroy_read_struct(&png, &info, NULL);
+        if (fp) fclose(fp);
+        g_free(rows);
+        g_free(scratch);
+        g_free(data);
+        if (loader) DestroyPngLoader(loader);
+        return NULL;
+    }
+
+    png_init_io(png, fp);
+    png_set_sig_bytes(png, 8);
+    png_read_info(png, info);
+
+    png_get_IHDR(png, info, &w, &h, &bit_depth, &color_type,
+                 NULL, NULL, NULL);
+
+    if (png_get_valid(png, info, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png);
+    if (color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png);
+    else if (color_type == PNG_COLOR_TYPE_GRAY ||
+             color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_gray_to_rgb(png);
+    if (bit_depth == 16)
+        png_set_strip_16(png);
+    png_set_filler(png, 0xff, PNG_FILLER_AFTER);
+
+    if (w == 0 || h == 0 || w > 0x7fff || h > 0x7fff) {
+        png_destroy_read_struct(&png, &info, NULL);
+        fclose(fp);
+        return NULL;
+    }
+    png_set_user_limits(png, 0x7fff, 0x7fff);
+
+    loader = g_slice_new0(PngLoader);
+    data = g_new(RrPixel32, (png_uint_32)w * h);
+    scratch = g_new(png_byte, (png_size_t)w * h * 4);
+    rows = g_new(png_bytep, h);
+    for (y = 0; y < h; ++y)
+        rows[y] = scratch + (png_size_t)y * w * 4;
+
+    png_read_image(png, rows);
+    png_read_end(png, NULL);
+    png_destroy_read_struct(&png, &info, NULL);
+    g_free(rows);
+    rows = NULL;
+    fclose(fp);
+    fp = NULL;
+
+    ConvertPngToPixels(scratch, data, (gint)w, (gint)h);
+
+    g_free(scratch);
+    scratch = NULL;
+
+    loader->pixel_data = data;
+    *pixel_data = data;
+    *width = (gint)w;
+    *height = (gint)h;
+    return loader;
+}
+
+#endif  /* USE_LIBPNG */
+
 #if defined(USE_LIBRSVG)
 typedef struct _RsvgLoader RsvgLoader;
 
@@ -623,6 +768,9 @@ RrImage* RrImageNewFromName(RrImageCache *cache, const gchar *name)
 #if defined(USE_IMLIB2)
     ImlibLoader *imlib_loader = NULL;
 #endif
+#if defined(USE_LIBPNG)
+    PngLoader *png_loader = NULL;
+#endif
 #if defined(USE_LIBRSVG)
     RsvgLoader *rsvg_loader = NULL;
 #endif
@@ -653,6 +801,12 @@ RrImage* RrImageNewFromName(RrImageCache *cache, const gchar *name)
         loaded = !!imlib_loader;
     }
 #endif
+#if defined(USE_LIBPNG)
+    if (!loaded) {
+        png_loader = LoadWithPng(path, &data, &w, &h);
+        loaded = !!png_loader;
+    }
+#endif
 
     if (!loaded) {
         g_message("Cannot load image \"%s\" from file \"%s\"", name, path);
@@ -662,6 +816,9 @@ RrImage* RrImageNewFromName(RrImageCache *cache, const gchar *name)
 #endif
 #if defined(USE_IMLIB2)
         DestroyImlibLoader(imlib_loader);
+#endif
+#if defined(USE_LIBPNG)
+        DestroyPngLoader(png_loader);
 #endif
         return NULL;
     }
@@ -686,6 +843,9 @@ RrImage* RrImageNewFromName(RrImageCache *cache, const gchar *name)
 #endif
 #if defined(USE_IMLIB2)
     DestroyImlibLoader(imlib_loader);
+#endif
+#if defined(USE_LIBPNG)
+    DestroyPngLoader(png_loader);
 #endif
 
     return self;
@@ -1034,4 +1194,91 @@ void RrImageDrawImage(RrPixel32 *target, RrTextureImage *img,
              img->alpha, area);
     if (free_pic)
         RrImagePicFree(pic);
+}
+
+/*! Draw a picture scaled with nine-slice scaling into the target, filling the
+  whole rectangle specified.  The left and right margins are equal
+  (margin_x), the top margin is margin_y and the bottom margin is
+  margin_bottom.  The four corners are copied 1:1, the edges are stretched
+  along one axis, and the center piece is stretched in both axes.  Pixels are
+  alpha-composited over whatever is already in the target. */
+void RrImageDrawNineSlice(RrPixel32 *target, const RrPixel32 *src,
+                          gint src_w, gint src_h,
+                          gint margin_x, gint margin_y, gint margin_bottom,
+                          gint target_w, gint target_h,
+                          RrRect *area)
+{
+    gint x, y;
+    gint mx, mt, mb;
+
+    g_assert(area->x + area->width <= target_w);
+    g_assert(area->y + area->height <= target_h);
+
+    mx = MAX(0, MIN(margin_x, MIN(src_w, area->width) / 2));
+    mt = MAX(0, MIN(margin_y, MIN(src_h, area->height) / 2));
+    mb = MAX(0, MIN(margin_bottom, MIN(src_h, area->height) / 2));
+
+    for (y = 0; y < area->height; ++y) {
+        RrPixel32 *dest = target + area->x +
+            (target_w * (area->y + y));
+        gint sy;
+
+        if (y < mt)
+            sy = y;
+        else if (y >= area->height - mb)
+            sy = (src_h - 1) - (area->height - 1 - y);
+        else {
+            gint dmid = area->height - mt - mb;
+            gint smid = src_h - mt - mb;
+            if (dmid <= 0 || smid <= 0)
+                sy = (src_h - mt - mb) / 2; /* can be negative -> clamp */
+            else if (dmid == smid)
+                sy = y; /* exact 1:1 mapping */
+            else
+                sy = mt + ((y - mt) * (smid - 1) + dmid / 2) / dmid;
+        }
+        sy = MIN(MAX(0, sy), src_h - 1);
+
+        for (x = 0; x < area->width; ++x) {
+            const RrPixel32 *source;
+            guchar a, r, g, b, bgr, bgg, bgb;
+            gint sx;
+
+            if (x < mx)
+                sx = x;
+            else if (x >= area->width - mx)
+                sx = (src_w - 1) - (area->width - 1 - x);
+            else {
+                gint dmid = area->width - mx - mx;
+                gint smid = src_w - mx - mx;
+                if (dmid <= 0 || smid <= 0)
+                    sx = (src_w - mx - mx) / 2; /* can be negative -> clamp */
+                else if (dmid == smid)
+                    sx = x; /* exact 1:1 mapping */
+                else
+                    sx = mx + ((x - mx) * (smid - 1) + dmid / 2) / dmid;
+            }
+            sx = MIN(MAX(0, sx), src_w - 1);
+
+            source = src + sy * src_w + sx;
+            a = *source >> RrDefaultAlphaOffset;
+            r = *source >> RrDefaultRedOffset;
+            g = *source >> RrDefaultGreenOffset;
+            b = *source >> RrDefaultBlueOffset;
+
+            /* background color */
+            bgr = *dest >> RrDefaultRedOffset;
+            bgg = *dest >> RrDefaultGreenOffset;
+            bgb = *dest >> RrDefaultBlueOffset;
+
+            r = bgr + (((r - bgr) * a) >> 8);
+            g = bgg + (((g - bgg) * a) >> 8);
+            b = bgb + (((b - bgb) * a) >> 8);
+
+            *dest = ((r << RrDefaultRedOffset) |
+                     (g << RrDefaultGreenOffset) |
+                     (b << RrDefaultBlueOffset));
+            ++dest;
+        }
+    }
 }

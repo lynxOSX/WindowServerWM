@@ -32,6 +32,29 @@ static void framerender_desk(ObFrame *self, RrAppearance *a);
 static void framerender_shade(ObFrame *self, RrAppearance *a);
 static void framerender_close(ObFrame *self, RrAppearance *a);
 
+/* WindowServerWM fork: position the traffic lights on the caption strip
+   (the artwork's metrics); upstream used paddingy + 1 */
+static gint wm_button_y(const ObFrame *self)
+{
+    if (ob_rr_theme->have_png_assets) {
+        /* full caption: the cells sit at y 4; the small caption is shorter
+           than the cells and clips them flush at its top */
+        return self->title_height >= ob_rr_theme->button_size ? 4 : 0;
+    }
+    return MAX(0, (self->title_height - ob_rr_theme->button_size) / 2);
+}
+
+static gint wm_label_y(const ObFrame *self)
+{
+    return MAX(0, (self->title_height - ob_rr_theme->label_height) / 2);
+}
+
+/* matches frame.c: the 16 px window icon centers in the caption strip */
+static gint wm_icon_y(const ObFrame *self)
+{
+    return MAX(0, (self->title_height - 16) / 2);
+}
+
 void framerender_frame(ObFrame *self)
 {
     if (frame_iconify_animating(self))
@@ -244,7 +267,7 @@ void framerender_frame(ObFrame *self)
         }
         clear = ob_rr_theme->a_clear;
 
-        RrPaint(t, self->title, self->width, ob_rr_theme->title_height);
+        RrPaint(t, self->title, self->width, self->title_height);
 
         clear->surface.parent = t;
         clear->surface.parenty = 0;
@@ -260,9 +283,9 @@ void framerender_frame(ObFrame *self)
         if (ob_rr_theme->grip_width > 0)
             RrPaint(clear, self->tltresize,
                     ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
-        if (ob_rr_theme->title_height > 0)
+        if (self->title_height > 0)
             RrPaint(clear, self->tllresize,
-                    ob_rr_theme->paddingx + 1, ob_rr_theme->title_height);
+                    ob_rr_theme->paddingx + 1, self->title_height);
 
         clear->surface.parentx = self->width - ob_rr_theme->grip_width;
 
@@ -272,38 +295,38 @@ void framerender_frame(ObFrame *self)
 
         clear->surface.parentx = self->width - (ob_rr_theme->paddingx + 1);
 
-        if (ob_rr_theme->title_height > 0)
+        if (self->title_height > 0)
             RrPaint(clear, self->trrresize,
-                    ob_rr_theme->paddingx + 1, ob_rr_theme->title_height);
+                    ob_rr_theme->paddingx + 1, self->title_height);
 
         /* set parents for any parent relative guys */
         l->surface.parent = t;
         l->surface.parentx = self->label_x;
-        l->surface.parenty = ob_rr_theme->paddingy;
+        l->surface.parenty = wm_label_y(self);
 
         m->surface.parent = t;
         m->surface.parentx = self->max_x;
-        m->surface.parenty = ob_rr_theme->paddingy + 1;
+        m->surface.parenty = wm_button_y(self);
 
         n->surface.parent = t;
         n->surface.parentx = self->icon_x;
-        n->surface.parenty = ob_rr_theme->paddingy;
+        n->surface.parenty = wm_icon_y(self);
 
         i->surface.parent = t;
         i->surface.parentx = self->iconify_x;
-        i->surface.parenty = ob_rr_theme->paddingy + 1;
+        i->surface.parenty = wm_button_y(self);
 
         d->surface.parent = t;
         d->surface.parentx = self->desk_x;
-        d->surface.parenty = ob_rr_theme->paddingy + 1;
+        d->surface.parenty = wm_button_y(self);
 
         s->surface.parent = t;
         s->surface.parentx = self->shade_x;
-        s->surface.parenty = ob_rr_theme->paddingy + 1;
+        s->surface.parenty = wm_button_y(self);
 
         c->surface.parent = t;
         c->surface.parentx = self->close_x;
-        c->surface.parenty = ob_rr_theme->paddingy + 1;
+        c->surface.parenty = wm_button_y(self);
 
         framerender_label(self, l);
         framerender_max(self, m);
@@ -353,6 +376,10 @@ static void framerender_label(ObFrame *self, RrAppearance *a)
     if (!self->label_on) return;
     /* set the texture's text! */
     a->texture[0].data.text.string = self->client->title;
+    /* WindowServerWM fork: a truly centered title sits in a just-fitting
+       label window and its glyphs draw from the left edge of it */
+    a->texture[0].data.text.justify = self->label_leftly ?
+        RR_JUSTIFY_LEFT : RR_JUSTIFY_CENTER;
     RrPaint(a, self->label, self->label_width, ob_rr_theme->label_height);
 }
 
@@ -374,8 +401,8 @@ static void framerender_icon(ObFrame *self, RrAppearance *a)
         a->texture[0].type = RR_TEXTURE_NONE;
     }
 
-    RrPaint(a, self->icon,
-            ob_rr_theme->button_size + 2, ob_rr_theme->button_size + 2);
+    /* the window icon draws at its full 16x16 cell like macOS */
+    RrPaint(a, self->icon, 16, 16);
 }
 
 static void framerender_max(ObFrame *self, RrAppearance *a)

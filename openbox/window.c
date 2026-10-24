@@ -17,7 +17,6 @@
 */
 
 #include "window.h"
-#include "menuframe.h"
 #include "config.h"
 #include "dock.h"
 #include "client.h"
@@ -52,8 +51,10 @@ void window_shutdown(gboolean reconfig)
 Window window_top(ObWindow *self)
 {
     switch (self->type) {
+    /* WindowServerWM fork: the menu subsystem was removed; the class
+       number stays so other window types keep their identity */
     case OB_WINDOW_CLASS_MENUFRAME:
-        return WINDOW_AS_MENUFRAME(self)->window;
+        g_assert_not_reached();
     case OB_WINDOW_CLASS_DOCK:
         return WINDOW_AS_DOCK(self)->frame;
     case OB_WINDOW_CLASS_CLIENT:
@@ -74,8 +75,8 @@ ObStackingLayer window_layer(ObWindow *self)
         return config_dock_layer;
     case OB_WINDOW_CLASS_CLIENT:
         return ((ObClient*)self)->layer;
-    case OB_WINDOW_CLASS_MENUFRAME:
     case OB_WINDOW_CLASS_INTERNAL:
+    case OB_WINDOW_CLASS_MENUFRAME:
         return OB_STACKING_LAYER_INTERNAL;
     case OB_WINDOW_CLASS_PROMPT:
         /* not used directly for stacking, prompts are managed as clients */

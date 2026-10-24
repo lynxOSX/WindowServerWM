@@ -10,10 +10,10 @@ Copyright (C) 2002  Dana Jansens
 The window manager of lynxOS: macOS X-like window management. Built on the
 upstream openbox base, with:
 
-Current state (placeholder macOS X title bar, traffic lights on the left,
-title centered in the bar):
+Current state (macOS X title bar rendered with the real cougar assets:
+caption-strip nine-slice, traffic-light PNGs per state, centered title):
 
-![macOS X title bar placeholder](doc/screenshots/macosx-titlebar-placeholder.png)
+![macOS X title bar](doc/screenshots/macosx-titlebar.png)
 
 - **No preferences, no user configuration.** The configuration is a system
   asset read from a hardcoded location, and so is the theme:
@@ -27,13 +27,28 @@ title centered in the bar):
   standard XDG search still applies as a fallback when the hardcoded paths
   don't exist.
 
-- **macOS X title bar layout.** Theme layout placeholder `CIML` (close,
-  iconify, maximize on the left of the title, nothing on the right); the
-  title is centered in the whole bar by openbox/frame.c (layout_title), and
-  slides out from under the buttons if it would overlap them. The bundled
-  "WindowServer" theme is a placeholder: flat macOS-ish colors and the
-  built-in button glyphs colored like traffic lights (close = red,
-  iconify = yellow, maximize = green), no image assets yet.
+- **macOS X title bar layout.** Theme layout `CIMNL` (close, iconify,
+  maximize on the left, then the window icon beside the centered title,
+  nothing on the right); the title is centered in the whole bar by
+  openbox/frame.c (layout_title), and slides out from under the buttons if
+  it would overlap them. When the asset pack is present
+  (themes/WindowServer/openbox-3/assets/, attribution in assets/README,
+  art from https://gitgud.io/x6shell/aurora), obrender/theme.c draws the
+  titlebar as cougar's caption strip (nine-slice) and the traffic lights as
+  cougar pngs per state, with
+  the header height and button metrics from aurora's properties.ini
+  (23 px caption, 16 px buttons, centered vertically); without the assets
+  the built-in glyph masks colored like traffic lights are the fallback.
+  Dialog and Utility windows get the compact 14 px caption ("small
+  titlebar"): the 14x16 control cells keep their intrinsic size and are
+  clipped by the shorter strip, never scaled. Titles are regular weight.
+
+- The caption strip comes in as a nine-slice texture (RR_TEXTURE_9SLICE in
+  obrender) and images load through libpng (USE_LIBPNG in obrender/image.c).
+  Window shadows are not drawn yet: openbox has no compositor. The
+  toolbar-merged variant of the reference chrome is left to the client
+  apps (openbox only owns the caption strip). The asset spec lives in
+  guide_PRIVATE/windowcontrols_Ref/DESIGN-GUIDE.md.
 
 - Real assets/layout work continues as the lynxOS desktop components land.
 

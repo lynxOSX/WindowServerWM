@@ -78,6 +78,7 @@ obrender_libobrender_la_CPPFLAGS = \
 	$(XML_CFLAGS) \
 	$(PANGO_CFLAGS) \
 	$(IMLIB2_CFLAGS) \
+	$(LIBPNG_CFLAGS) \
 	$(LIBRSVG_CFLAGS) \
 	-DG_LOG_DOMAIN=\"ObRender\" \
 	-DDEFAULT_THEME=\"$(theme)\"
@@ -89,6 +90,7 @@ obrender_libobrender_la_LIBADD = \
 	$(PANGO_LIBS) \
 	$(GLIB_LIBS) \
 	$(IMLIB2_LIBS) \
+	$(LIBPNG_LIBS) \
 	$(LIBRSVG_LIBS) \
 	$(XML_LIBS)
 obrender_libobrender_la_SOURCES = \
@@ -233,21 +235,14 @@ openbox_openbox_SOURCES = \
 	openbox/actions/restart.c \
 	openbox/actions/shade.c \
 	openbox/actions/shadelowerraise.c \
-	openbox/actions/showdesktop.c \
-	openbox/actions/showmenu.c \
-	openbox/actions/unfocus.c \
-	openbox/actions.c \
-	openbox/actions.h \
-	openbox/client.c \
-	openbox/client.h \
-	openbox/client_list_menu.c \
-	openbox/client_list_menu.h \
-	openbox/client_list_combined_menu.c \
-	openbox/client_list_combined_menu.h \
-	openbox/client_menu.c \
-	openbox/client_menu.h \
-	openbox/config.c \
-	openbox/config.h \
+ 	openbox/actions/showdesktop.c \
+ 	openbox/actions/unfocus.c \
+ 	openbox/actions.c \
+ 	openbox/actions.h \
+ 	openbox/client.c \
+ 	openbox/client.h \
+ 	openbox/config.c \
+ 	openbox/config.h \
 	openbox/debug.c \
 	openbox/debug.h \
 	openbox/dock.c \
@@ -275,10 +270,6 @@ openbox_openbox_SOURCES = \
 	openbox/keyboard.h \
 	openbox/keytree.c \
 	openbox/keytree.h \
-	openbox/menuframe.c \
-	openbox/menuframe.h \
-	openbox/menu.c \
-	openbox/menu.h \
 	openbox/misc.h \
 	openbox/mouse.c \
 	openbox/mouse.h \
@@ -498,8 +489,7 @@ dist_pixmap_DATA = \
 	data/openbox.png
 
 dist_rc_DATA = \
-	data/rc.xml \
-	data/menu.xml
+	data/rc.xml
 
 edit = $(SED) \
 	-e 's!@version\@!$(VERSION)!' \
@@ -550,7 +540,6 @@ dist_gnomesession_DATA = \
 
 dist_noinst_DATA = \
 	data/rc.xsd \
-	data/menu.xsd \
 	data/autostart/autostart.in \
 	data/autostart/openbox-autostart.in \
 	data/xsession/openbox.desktop.in \
@@ -598,7 +587,6 @@ dist_doc_DATA = \
 	CHANGELOG \
 	COPYING \
 	data/rc.xsd \
-	data/menu.xsd \
 	doc/rc-mouse-focus.xml
 
 nodist_man_MANS = \

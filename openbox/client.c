@@ -36,7 +36,6 @@
 #include "openbox.h"
 #include "group.h"
 #include "config.h"
-#include "menuframe.h"
 #include "keyboard.h"
 #include "mouse.h"
 #include "obrender/render.h"

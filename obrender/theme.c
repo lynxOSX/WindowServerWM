@@ -67,6 +67,161 @@ static gboolean read_appearance(XrmDatabase db, const RrInstance *inst,
 static int parse_inline_number(const char *p);
 static RrPixel32* read_c_image(gint width, gint height, const guint8 *data);
 static void set_default_appearance(RrAppearance *a);
+static RrImage* png_asset(RrImageCache *cache, const gchar *dir,
+                           const gchar *name, GSList **loaded)
+{
+    gchar *file = g_build_filename(dir, name, NULL);
+    RrImage *img = RrImageNewFromName(cache, file);
+    g_free(file);
+    if (img) *loaded = g_slist_append(*loaded, img);
+    return img;
+}
+
+/* apply one of the five traffic-light states' png to an appearance.
+   state: 0=active(none pressed) 1=hover 2=pressed 3=disabled 4=inactive */
+static void set_image_texture(RrAppearance *a, RrImage *img)
+{
+    if (!a || !img) return;
+    RrAppearanceClearTextures(a);
+    a->texture[0].type = RR_TEXTURE_IMAGE;
+    a->texture[0].data.image.image = img;
+    a->texture[0].data.image.alpha = 255;
+    a->texture[0].data.image.tx = 0;
+    a->texture[0].data.image.ty = 0;
+    a->texture[0].data.image.twidth = 0;
+    a->texture[0].data.image.theight = 0;
+}
+
+static void apply_button_png(RrButton *btn, RrImage *const pngs[5])
+{
+    if (!btn || !pngs[0] || !pngs[1] || !pngs[2] || !pngs[3] || !pngs[4])
+        return;
+
+    set_image_texture(btn->a_focused_unpressed, pngs[0]);
+    set_image_texture(btn->a_focused_hover, pngs[1]);
+    set_image_texture(btn->a_focused_pressed, pngs[2]);
+    set_image_texture(btn->a_focused_disabled, pngs[3]);
+
+    set_image_texture(btn->a_unfocused_unpressed, pngs[4]);
+    set_image_texture(btn->a_unfocused_hover, pngs[4]);
+    set_image_texture(btn->a_unfocused_pressed, pngs[4]);
+    set_image_texture(btn->a_unfocused_disabled, pngs[3]);
+
+    set_image_texture(btn->a_focused_unpressed_toggled, pngs[0]);
+    set_image_texture(btn->a_focused_hover_toggled, pngs[1]);
+    set_image_texture(btn->a_focused_pressed_toggled, pngs[2]);
+    set_image_texture(btn->a_unfocused_unpressed_toggled, pngs[4]);
+    set_image_texture(btn->a_unfocused_hover_toggled, pngs[4]);
+    set_image_texture(btn->a_unfocused_pressed_toggled, pngs[4]);
+}
+
+/*! Load the png assets for the hardcoded WindowServer theme from
+  <theme>/assets/.  Successful images are kept in theme->png_assets so
+  RrThemeFree can unref them; the appearances only get textures when every
+  png a given feature needs is available. */
+static void load_png_assets(RrTheme *theme, const gchar *path)
+{
+    gchar *dir;
+    GSList *loaded = NULL;
+    GSList *it;
+    gint i, at;
+    RrImage *titlebar[2];
+    RrImage *btn_png[3][5];
+    static const struct {
+        const gchar *btnname;   /* RrButton in the theme */
+        const gchar *assetname; /* file name base from the asset pack */
+    } buttons[3] = {
+        { "max",     "maximize" },
+        { "close",   "close" },
+        { "iconify", "minimize" }
+    };
+    static const gchar *states[5] = {
+        "active", "hover", "pressed", "disabled", "inactive"
+    };
+    static const gint margins[3] = { 6, 6, 1 }; /* Aurora properties.ini */
+
+    theme->have_png_assets = FALSE;
+    theme->png_cache = NULL;
+    for (i = 0; i < (gint)(2 + 3*5); ++i) theme->png_assets[i] = NULL;
+
+    if (path == NULL) return;
+    dir = g_build_filename(path, "assets", NULL);
+    if (!g_file_test(dir, G_FILE_TEST_IS_DIR)) {
+        g_free(dir);
+        return;
+    }
+
+    theme->png_cache = RrImageCacheNew(0);
+
+    titlebar[0] = png_asset(theme->png_cache, dir,
+                            "caption-border-active.png", &loaded);
+    titlebar[1] = png_asset(theme->png_cache, dir,
+                            "caption-border-inactive.png", &loaded);
+
+    at = 2;
+    for (i = 0; i < 3; ++i) {
+        gint s;
+        gchar name[64];
+        for (s = 0; s < 5; ++s) {
+            g_snprintf(name, sizeof(name), "%s-%s-color.png",
+                       buttons[i].assetname, states[s]);
+            btn_png[i][s] = png_asset(theme->png_cache, dir, name, &loaded);
+        }
+        for (s = 0; s < 5; ++s)
+            theme->png_assets[at++] = btn_png[i][s];
+    }
+
+    if (titlebar[0] && titlebar[1]) {
+        RrAppearance *a[2];
+        gint k;
+
+        theme->png_assets[0] = titlebar[0];
+        theme->png_assets[1] = titlebar[1];
+
+        a[0] = theme->a_focused_title;
+        a[1] = theme->a_unfocused_title;
+        for (k = 0; k < 2; ++k) {
+            RrImagePic *pic;
+            g_assert(a[k]->textures == 0);
+            RrAppearanceAddTextures(a[k], 1);
+            pic = titlebar[k]->set->original[0];
+            g_assert(pic != NULL);
+
+            a[k]->texture[0].type = RR_TEXTURE_9SLICE;
+            a[k]->texture[0].data.nineslice.data = pic->data;
+            a[k]->texture[0].data.nineslice.width = pic->width;
+            a[k]->texture[0].data.nineslice.height = pic->height;
+            a[k]->texture[0].data.nineslice.mx = margins[0];
+            a[k]->texture[0].data.nineslice.my = margins[1];
+            a[k]->texture[0].data.nineslice.mb = margins[2];
+        }
+
+        /* exact Mac metrics when the assets drive the titlebar */
+        theme->title_height = 23;
+        theme->button_size = 16;
+    }
+
+    apply_button_png(theme->btn_max, btn_png[0]);
+    apply_button_png(theme->btn_close, btn_png[1]);
+    apply_button_png(theme->btn_iconify, btn_png[2]);
+
+    g_free(dir);
+
+    /* count how many images are actually retained on the theme */
+    at = 0;
+    for (it = loaded; it; it = g_slist_next(it)) ++at;
+    if (at != 2 + 3*5) {
+        /* partial load: keep the ones that made it, drop the set if it is
+           unusable (titlebar missing -> keep mask fallback) */
+        if (!theme->png_assets[0] || !theme->png_assets[1]) {
+            theme->png_assets[0] = theme->png_assets[1] = NULL;
+        }
+    }
+    g_slist_free(loaded);
+
+    theme->have_png_assets = (theme->png_cache != NULL && at > 0);
+}
+
 static void read_button_styles(XrmDatabase db, const RrInstance *inst, 
                                gchar *path,
                                const RrTheme *theme, RrButton *btn, 
@@ -1006,6 +1161,8 @@ RrTheme* RrThemeNew(const RrInstance *inst, const gchar *name,
     RrAppearanceFree(fbs.unfocused_unpressed_toggled);
     RrAppearanceFree(fbs.unfocused_pressed_toggled);
 
+    load_png_assets(theme, path);
+
     return theme;
 }
 
@@ -1069,7 +1226,15 @@ void RrThemeFree(RrTheme *theme)
         RrColorFree(theme->menu_text_shadow_color);
 
         g_free(theme->def_win_icon);
-        
+
+        if (theme->png_cache) {
+            gint i;
+            for (i = 0; i < (gint)(2 + 3*5); ++i)
+                if (theme->png_assets[i])
+                    RrImageUnref(theme->png_assets[i]);
+            RrImageCacheUnref(theme->png_cache);
+        }
+
         RrPixmapMaskFree(theme->menu_bullet_mask);
         RrPixmapMaskFree(theme->down_arrow_mask);
         RrPixmapMaskFree(theme->up_arrow_mask);

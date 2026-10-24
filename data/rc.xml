@@ -13,7 +13,10 @@
      (close, minimize, zoom), title centered in the bar.
      titleLayout letters: C=close I=iconify M=maximize L=title;
      everything before L sits on the left of the title, the rest (none
-     here) on the right. The centering is done by the WM (openbox/frame.c). -->
+     here) on the right. The centering is done by the WM (openbox/frame.c).
+     The window icon (N) has no fixed slot: frame.c reattaches it to the
+     left of the centered title text like macOS X does, and the small
+     caption of dialogs/utility windows omits it. -->
 
 <resistance>
   <strength>10</strength>
@@ -35,19 +38,19 @@
 
 <theme>
   <name>WindowServer</name>
-  <titleLayout>CIML</titleLayout>
+  <titleLayout>CIMNL</titleLayout>
   <keepBorder>yes</keepBorder>
   <animateIconify>yes</animateIconify>
   <font place="ActiveWindow">
     <name>sans</name>
     <size>9</size>
-    <weight>bold</weight>
+    <weight>normal</weight>
     <slant>normal</slant>
   </font>
   <font place="InactiveWindow">
     <name>sans</name>
     <size>9</size>
-    <weight>bold</weight>
+    <weight>normal</weight>
     <slant>normal</slant>
   </font>
   <font place="MenuHeader">
@@ -167,9 +170,6 @@
     <mousebind button="Left" action="DoubleClick">
       <action name="ToggleMaximize"/>
     </mousebind>
-    <mousebind button="Right" action="Click">
-      <action name="ShowMenu"><menu>client-menu</menu></action>
-    </mousebind>
   </context>
 
   <context name="Close">
@@ -200,21 +200,7 @@
       <action name="Unmaximize"/>
     </mousebind>
   </context>
-
-  <context name="Desktop">
-    <mousebind button="Right" action="Press">
-      <action name="ShowMenu"><menu>root-menu</menu></action>
-    </mousebind>
-  </context>
 </mouse>
-
-<menu>
-  <file>menu.xml</file>
-  <hideDelay>200</hideDelay>
-  <submenuShowDelay>100</submenuShowDelay>
-  <showIcons>yes</showIcons>
-  <manageDesktops>no</manageDesktops>
-</menu>
 
 <applications/>
 

@@ -1,0 +1,5 @@
+WindowServerWM
+
+A fork of Openbox 3 for lynxOS: a macOS X (10.6)-style window manager.
+The theme is hardcoded (themes/WindowServer) and the config lives at
+/Library/WindowServerWM/rc.xml (see README.md for the full layout).

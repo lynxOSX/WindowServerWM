@@ -94,16 +94,6 @@ gint     config_mouse_dclicktime;
 gint     config_mouse_screenedgetime;
 gboolean config_mouse_screenedgewarp;
 
-guint    config_menu_hide_delay;
-gboolean config_menu_middle;
-guint    config_submenu_show_delay;
-guint    config_submenu_hide_delay;
-gboolean config_menu_manage_desktops;
-gboolean config_menu_show_icons;
-gboolean config_menu_separate_iconic;
-
-GSList *config_menu_files;
-
 gint     config_resist_win;
 gint     config_resist_edge;
 
@@ -961,42 +951,6 @@ static void parse_dock(xmlNodePtr node, gpointer d)
     }
 }
 
-static void parse_menu(xmlNodePtr node, gpointer d)
-{
-    xmlNodePtr n;
-    node = node->children;
-
-    if ((n = obt_xml_find_node(node, "hideDelay")))
-        config_menu_hide_delay = obt_xml_node_int(n);
-    if ((n = obt_xml_find_node(node, "middle")))
-        config_menu_middle = obt_xml_node_bool(n);
-    if ((n = obt_xml_find_node(node, "submenuShowDelay")))
-        config_submenu_show_delay = obt_xml_node_int(n);
-    if ((n = obt_xml_find_node(node, "submenuHideDelay")))
-        config_submenu_hide_delay = obt_xml_node_int(n);
-    if ((n = obt_xml_find_node(node, "manageDesktops")))
-        config_menu_manage_desktops = obt_xml_node_bool(n);
-    if ((n = obt_xml_find_node(node, "showIcons"))) {
-        config_menu_show_icons = obt_xml_node_bool(n);
-#if !defined(USE_IMLIB2) && !defined(USE_LIBRSVG)
-        if (config_menu_show_icons)
-            g_message(_("Openbox was compiled without image loading support. Icons in menus will not be loaded."));
-#endif
-    }
-    if ((n = obt_xml_find_node(node, "separateIconic")))
-        config_menu_separate_iconic = obt_xml_node_bool(n);
-
-    for (node = obt_xml_find_node(node, "file");
-         node;
-         node = obt_xml_find_node(node->next, "file"))
-    {
-            gchar *c = obt_xml_node_string(node);
-            config_menu_files = g_slist_append(config_menu_files,
-                                               obt_paths_expand_tilde(c));
-            g_free(c);
-    }
-}
-
 static void parse_resistance(xmlNodePtr node, gpointer d)
 {
     xmlNodePtr n;
@@ -1190,17 +1144,6 @@ void config_startup(ObtXmlInst *i)
 
     obt_xml_register(i, "resistance", parse_resistance, NULL);
 
-    config_menu_hide_delay = 250;
-    config_menu_middle = FALSE;
-    config_submenu_show_delay = 100;
-    config_submenu_hide_delay = 400;
-    config_menu_manage_desktops = TRUE;
-    config_menu_files = NULL;
-    config_menu_show_icons = TRUE;
-    config_menu_separate_iconic = FALSE;
-
-    obt_xml_register(i, "menu", parse_menu, NULL);
-
     config_per_app_settings = NULL;
 
     obt_xml_register(i, "applications", parse_per_app_settings, NULL);
@@ -1225,9 +1168,6 @@ void config_shutdown(void)
         g_free(it->data);
     g_slist_free(config_desktops_names);
 
-    for (it = config_menu_files; it; it = g_slist_next(it))
-        g_free(it->data);
-    g_slist_free(config_menu_files);
 
     for (it = config_per_app_settings; it; it = g_slist_next(it)) {
         ObAppSettings *itd = (ObAppSettings *)it->data;

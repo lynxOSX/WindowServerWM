@@ -26,7 +26,6 @@
 #include "grab.h"
 #include "client.h"
 #include "actions.h"
-#include "menuframe.h"
 #include "config.h"
 #include "keytree.h"
 #include "keyboard.h"
@@ -255,10 +254,6 @@ gboolean keyboard_event(ObClient *client, const XEvent *e)
         p = curpos->first_child;
     while (p) {
         if (p->key == e->xkey.keycode && p->state == mods && !(p->no_repeat && repeating)) {
-            /* if we hit a key binding, then close any open menus and run it */
-            if (menu_frame_visible)
-                menu_frame_hide_all();
-
             if (p->first_child != NULL) { /* part of a chain */
                 if (chain_timer) g_source_remove(chain_timer);
                 /* 3 second timeout for chains */

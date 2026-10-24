@@ -205,6 +205,36 @@ fi
 
 AM_CONDITIONAL(USE_IMLIB2, [test $imlib2_found = yes])
 
+AC_ARG_ENABLE(libpng,
+  AC_HELP_STRING(
+    [--disable-libpng],
+    [disable use of libpng for loading images. [default=enabled]]
+  ),
+  [enable_libpng=$enableval],
+  [enable_libpng=yes]
+)
+
+if test "$enable_libpng" = yes; then
+PKG_CHECK_MODULES(LIBPNG, [libpng],
+  [
+    AC_DEFINE(USE_LIBPNG, [1], [Use libpng image loading])
+    AC_SUBST(LIBPNG_CFLAGS)
+    AC_SUBST(LIBPNG_LIBS)
+    # export it for the pkg-config file
+    PKG_CONFIG_LIBPNG=libpng
+    AC_SUBST(PKG_CONFIG_LIBPNG)
+    libpng_found=yes
+  ],
+  [
+    libpng_found=no
+  ]
+)
+else
+  libpng_found=no
+fi
+
+AM_CONDITIONAL(USE_LIBPNG, [test $libpng_found = yes])
+
 AC_ARG_ENABLE(librsvg,
   AC_HELP_STRING(
     [--disable-librsvg],
@@ -274,6 +304,7 @@ AC_MSG_RESULT([Compiling with these options:
                X Cursor Library... $xcursor_found
                Session Management... $SM
                Imlib2 Library... $imlib2_found
+               libpng support... $libpng_found
                SVG Support (librsvg)... $librsvg_found
                ])
 AC_MSG_RESULT([configure complete, now type "make"])

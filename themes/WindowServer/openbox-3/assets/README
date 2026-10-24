@@ -1,0 +1,23 @@
+WindowServer theme PNG assets
+
+Traffic-light buttons (close-*, minimize-*, maximize-* - 14x16 logical
+pixels; states active, hover, pressed, disabled, inactive; color variant)
+and the caption titlebar strips (caption-border-active/inactive - 27x23,
+nine-slice margins 6 px left/right, 6 px top, 1 px bottom) are exact crops
+of Aurora's Cougar artstyle atlases. The implementation spec for them is
+guide_PRIVATE/windowcontrols_Ref/DESIGN-GUIDE.md; the full handoff pack
+lives in guide_PRIVATE/windowcontrols_Ref/assets/.
+
+Source: x6shell/aurora, commit 63a5efa
+(https://gitgud.io/x6shell/aurora). The upstream checkout contained no
+license file, so no license is asserted here; attribution and the original
+atlases are retained for provenance in the lynxOS asset pack
+(guide_PRIVATE/windowcontrols_Ref/assets/window-controls and
+...window-decoration/caption-border).
+
+Window shadows ( Cougar window-shadow assets: 91x91 box, 4-unit corner
+radius, 6-unit downward offset, blur 32) derive from
+kdecoration/cougardecoration.cpp, (c) 2026 catpswin56,
+AGPL-3.0-or-later, and libbreezecommon/breezeboxshadowrenderer.cpp,
+(c) 2018 Vlad Zahorodnii, GPL-2.0-or-later. They are not used by the WM
+yet (openbox has no compositor).

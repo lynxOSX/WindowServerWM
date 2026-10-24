@@ -339,10 +339,6 @@ void actions_run_acts(GSList *acts,
     GSList *it;
     gboolean update_user_time;
 
-    /* Don't allow saving the initial state when running things from the
-       menu */
-    if (uact == OB_USER_ACTION_MENU_SELECTION)
-        state = 0;
     /* If x and y are < 0 then use the current pointer position */
     if (x < 0 && y < 0)
         screen_pointer_pos(&x, &y);

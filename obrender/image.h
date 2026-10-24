@@ -28,5 +28,10 @@ void RrImageDrawImage(RrPixel32 *target, RrTextureImage *img,
 void RrImageDrawRGBA(RrPixel32 *target, RrTextureRGBA *rgba,
                      gint target_w, gint target_h,
                      RrRect *area);
+void RrImageDrawNineSlice(RrPixel32 *target, const RrPixel32 *src,
+                          gint src_w, gint src_h,
+                          gint margin_x, gint margin_y, gint margin_bottom,
+                          gint target_w, gint target_h,
+                          RrRect *area);
 
 #endif

@@ -130,6 +130,12 @@ struct _RrTheme {
     RrPixmapMask *down_arrow_mask;
     RrPixmapMask *up_arrow_mask;
 
+    /* WindowServerWM fork: image assets loaded from <theme>/assets, NULL
+       when absent (then the builtin glyph-mask fallbacks stay in use) */
+    gboolean      have_png_assets;
+    RrImageCache *png_cache;
+    RrImage      *png_assets[2 + 3*5]; /* titlebar x2, then per-button 5 */
+
     /* buttons */
     RrButton *btn_max;
     RrButton *btn_close;

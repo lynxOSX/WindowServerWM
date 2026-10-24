@@ -38,6 +38,7 @@ typedef struct _RrTexture          RrTexture;
 typedef struct _RrTextureMask      RrTextureMask;
 typedef struct _RrTextureRGBA      RrTextureRGBA;
 typedef struct _RrTextureImage     RrTextureImage;
+typedef struct _RrTexture9Slice    RrTexture9Slice;
 typedef struct _RrTextureText      RrTextureText;
 typedef struct _RrTextureLineArt   RrTextureLineArt;
 typedef struct _RrPixmapMask       RrPixmapMask;
@@ -87,6 +88,7 @@ typedef enum {
     RR_TEXTURE_LINE_ART,
     RR_TEXTURE_RGBA,
     RR_TEXTURE_IMAGE,
+    RR_TEXTURE_9SLICE,
     RR_TEXTURE_NUM_TYPES
 } RrTextureType;
 
@@ -197,6 +199,17 @@ struct _RrTextureImage {
     gint theight;
 };
 
+struct _RrTexture9Slice {
+    /*! pixel data in RrPixel32 format, not owned by the texture */
+    const RrPixel32 *data;
+    gint width;
+    gint height;
+    /*! nine-slice margins: left and right (equal), top, bottom */
+    gint mx;
+    gint my;
+    gint mb;
+};
+
 struct _RrTextureLineArt {
     RrColor *color;
     gint x1;
@@ -208,6 +221,7 @@ struct _RrTextureLineArt {
 union _RrTextureData {
     RrTextureRGBA rgba;
     RrTextureImage image;
+    RrTexture9Slice nineslice;
     RrTextureText text;
     RrTextureMask mask;
     RrTextureLineArt lineart;

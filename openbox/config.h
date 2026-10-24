@@ -203,22 +203,6 @@ extern gint config_resist_win;
 /*! Number of pixels to resist while crossing a screen's edge */
 extern gint config_resist_edge;
 
-/*! Delay for hiding menu when opening in milliseconds */
-extern guint    config_menu_hide_delay;
-/*! Center menus vertically about the parent entry */
-extern gboolean config_menu_middle;
-/*! Delay before opening a submenu in milliseconds */
-extern guint    config_submenu_show_delay;
-/*! Delay before closing a submenu in milliseconds */
-extern guint    config_submenu_hide_delay;
-/*! Show manage desktops in client_list_menu */
-extern gboolean config_menu_manage_desktops;
-/*! Load & show icons in user-defined menus */
-extern gboolean config_menu_show_icons;
-/*! Separate iconic windows instead of bracketing */
-extern gboolean config_menu_separate_iconic;
-/*! User-specified menu files */
-extern GSList *config_menu_files;
 /*! Per app settings */
 extern GSList *config_per_app_settings;
 

@@ -49,6 +49,44 @@ static void flash_done(gpointer data);
 static gboolean flash_timeout(gpointer data);
 
 static void layout_title(ObFrame *self);
+/* WindowServerWM fork: dialog and utility windows get a compact caption
+   like macOS X's small titlebar; the traffic-light cells stay at their
+   intrinsic 14x16 size and get clipped by the shorter strip. In the full
+   23 px strip they are vertically centered. */
+static gboolean wm_compact(const ObFrame *self)
+{
+    return self->client->type == OB_CLIENT_TYPE_DIALOG ||
+           self->client->type == OB_CLIENT_TYPE_UTILITY;
+}
+
+static void wm_set_metrics(ObFrame *self)
+{
+    self->title_height = wm_compact(self) ? 14 : ob_rr_theme->title_height;
+}
+
+static gint wm_button_y(const ObFrame *self)
+{
+    if (ob_rr_theme->have_png_assets) {
+        /* full caption: the traffic-light cells sit at y 4 (the artwork's
+           metrics); the small caption is shorter than the cells, they clip
+           flush at its top */
+        return self->title_height >= ob_rr_theme->button_size ? 4 : 0;
+    }
+    return MAX(0, (self->title_height - ob_rr_theme->button_size) / 2);
+}
+
+static gint wm_label_y(const ObFrame *self)
+{
+    return MAX(0, (self->title_height - ob_rr_theme->label_height) / 2);
+}
+
+/* WindowServerWM fork: the 16 px window icon centers vertically in the
+   caption strip (23 px art: y 3), unlike the traffic lights at y 4 */
+static gint wm_icon_y(const ObFrame *self)
+{
+    return MAX(0, (self->title_height - 16) / 2);
+}
+
 static void set_theme_statics(ObFrame *self);
 static void free_theme_statics(ObFrame *self);
 static gboolean frame_animate_iconify(gpointer self);
@@ -92,6 +130,7 @@ ObFrame *frame_new(ObClient *client)
 
     self = g_slice_new0(ObFrame);
     self->client = client;
+    wm_set_metrics(self);
 
     visual = check_32bit_client(client);
 
@@ -204,8 +243,7 @@ static void set_theme_statics(ObFrame *self)
                   ob_rr_theme->button_size, ob_rr_theme->button_size);
     XResizeWindow(obt_display, self->iconify,
                   ob_rr_theme->button_size, ob_rr_theme->button_size);
-    XResizeWindow(obt_display, self->icon,
-                  ob_rr_theme->button_size + 2, ob_rr_theme->button_size + 2);
+    XResizeWindow(obt_display, self->icon, 16, 16);
     XResizeWindow(obt_display, self->close,
                   ob_rr_theme->button_size, ob_rr_theme->button_size);
     XResizeWindow(obt_display, self->desk,
@@ -272,6 +310,90 @@ void frame_adjust_theme(ObFrame *self)
 }
 
 #ifdef SHAPE
+/* WindowServerWM fork: macOS X rounds the corners of framed windows.
+   The caption art carries the window's own antialiased corner curve in
+   its transparent pixels: the top corners of the shape follow that
+   outline, so the shape's outline and the outline of the artwork are
+   the same. The bottom corners get a circular arc of the configured
+   radius (no art fallback: arcs on all corners). */
+static gint wm_corner_radius(void)
+{
+    static gint r = -2; /* cache the env value, it is read only at startup */
+    if (r == -2) {
+        const gchar *env = g_getenv("WINDOWSERVERWM_CORNER_RADIUS");
+        r = env ? MAX(0, MIN(atoi(env), 20)) : 4;
+    }
+    return r;
+}
+
+static Pixmap wm_rounded_frame_mask(gint w, gint h, gint r)
+{
+    Pixmap pm = XCreatePixmap(obt_display, obt_root(ob_screen),
+                              MAX(1, w), MAX(1, h), 1);
+    GC gc = XCreateGC(obt_display, pm, 0, NULL);
+    const RrImage *art = ob_rr_theme->png_assets[0];
+    const RrImagePic *pic = (art != NULL && art->set != NULL &&
+                             art->set->n_original > 0) ?
+        art->set->original[0] : NULL;
+    gint y;
+
+    XSetForeground(obt_display, gc, 0);
+    XFillRectangle(obt_display, pm, gc, 0, 0, MAX(1, w), MAX(1, h));
+    XSetForeground(obt_display, gc, 1);
+
+    if (pic != NULL && pic->width >= 12 && h >= 6) {
+        /* the nine-slice keeps the art's 6 px corner cells at 1:1, so the
+           bar's top six rows are the art's own pixels: copy their curve */
+        const RrPixel32 *pix = pic->data;
+        const gint pw = pic->width;
+
+        for (y = 0; y < 6; ++y) {
+            gint l = 0, rt = 0, x;
+
+            for (x = 0; x < MIN(6, pw); ++x) {
+                if (((pix[y * pw + x] >> 24) & 0xff) >= 0x80) {
+                    l = x;
+                    break;
+                }
+                if (x + 1 == MIN(6, pw)) l = MIN(6, pw);
+            }
+            for (x = 0; x < MIN(6, pw); ++x) {
+                if (((pix[y * pw + (pw - 1 - x)] >> 24) & 0xff) >= 0x80) {
+                    rt = x;
+                    break;
+                }
+                if (x + 1 == MIN(6, pw)) rt = MIN(6, pw);
+            }
+            XFillRectangle(obt_display, pm, gc, l, y,
+                           MAX(0, w - l - rt), 1);
+        }
+    } else if (r > 0 && w > 2 * r && h > 2 * r) {
+        /* no art fallback: circular arcs on the top corners too */
+        XFillRectangle(obt_display, pm, gc, r, 0, w - 2 * r, r);
+        if (r < 6)
+            XFillRectangle(obt_display, pm, gc, 0, r, w, 6 - r);
+        XFillArc(obt_display, pm, gc, 0, 0, 2 * r, 2 * r, 5760, 5760);
+        XFillArc(obt_display, pm, gc, w - 2 * r, 0, 2 * r, 2 * r, 0, 5760);
+    }
+
+    /* the middle and the bottom corners (circular arc) */
+    if (r > 0 && h > 2 * r && h > 6 + r) {
+        /* straight edges down to the bottom arc band, then the inner
+           strip between the arcs, then the two corner discs */
+        XFillRectangle(obt_display, pm, gc, 0, 6, w, h - r - 6);
+        XFillRectangle(obt_display, pm, gc, r, h - r, w - 2 * r, r);
+        XFillArc(obt_display, pm, gc,
+                 0, h - 2 * r, 2 * r, 2 * r, 11520, 5760);
+        XFillArc(obt_display, pm, gc,
+                 w - 2 * r, h - 2 * r, 2 * r, 2 * r, 17280, 5760);
+    } else {
+        XFillRectangle(obt_display, pm, gc, 0, 6, MAX(1, w), MAX(0, h - 6));
+    }
+
+    XFreeGC(obt_display, gc);
+    return pm;
+}
+
 void frame_adjust_shape_kind(ObFrame *self, int kind)
 {
     gint num;
@@ -284,11 +406,25 @@ void frame_adjust_shape_kind(ObFrame *self, int kind)
 #endif
 
     if (!shaped) {
-        /* clear the shape on the frame window */
-        XShapeCombineMask(obt_display, self->window, kind,
-                          self->size.left,
-                          self->size.top,
-                          None, ShapeSet);
+        gint r = wm_corner_radius();
+
+        /* a window zoomed/fully maximized keeps square corners, like
+           macOS X */
+        if (self->max_horz && self->max_vert) r = 0;
+
+        if (r > 0) {
+            Pixmap pm = wm_rounded_frame_mask(self->area.width,
+                                              self->area.height, r);
+            XShapeCombineMask(obt_display, self->window, kind,
+                              0, 0, pm, ShapeSet);
+            XFreePixmap(obt_display, pm);
+        } else {
+            /* clear the shape on the frame window */
+            XShapeCombineMask(obt_display, self->window, kind,
+                              self->size.left,
+                              self->size.top,
+                              None, ShapeSet);
+        }
     } else {
         /* make the frame's shape match the clients */
         XShapeCombineShape(obt_display, self->window, kind,
@@ -385,11 +521,11 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   (!self->max_horz || !self->max_vert ? self->bwidth : 0));
 
         if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
-            self->size.top += ob_rr_theme->title_height + self->bwidth;
+            self->size.top += self->title_height + self->bwidth;
         else if (self->max_horz && self->max_vert) {
             /* A maximized and undecorated window needs a border on the
-               top of the window to let the user still undecorate/unmaximize the
-               window via the client menu. */
+               top of the window to let the user still undecorate/unmaximize
+               the window. */
             self->size.top += self->bwidth;
         }
 
@@ -542,7 +678,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 if (self->decorations & OB_FRAME_DECOR_TITLEBAR) {
                     XMoveResizeWindow(obt_display, self->titlebottom,
                                       (self->max_horz ? 0 : self->bwidth),
-                                      ob_rr_theme->title_height + self->bwidth,
+                                      self->title_height + self->bwidth,
                                       self->width,
                                       self->bwidth);
 
@@ -563,7 +699,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 XMoveResizeWindow(obt_display, self->title,
                                   (self->max_horz ? 0 : self->bwidth),
                                   self->bwidth,
-                                  self->width, ob_rr_theme->title_height);
+                                  self->width, self->title_height);
 
                 XMapWindow(obt_display, self->title);
 
@@ -822,7 +958,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->client->area.width +
                   self->size.left + self->size.right,
                   (self->client->shaded ?
-                   ob_rr_theme->title_height + self->bwidth * 2:
+                   self->title_height + self->bwidth * 2:
                    self->client->area.height +
                    self->size.top + self->size.bottom));
 
@@ -1138,7 +1274,10 @@ void frame_release_client(ObFrame *self)
 static gboolean is_button_present(ObFrame *self, const gchar *lc, gint dir) {
     for (; *lc != '\0' && lc >= config_title_layout; lc += dir) {
         if (*lc == ' ') continue; /* it was invalid */
-        if (*lc == 'N' && self->decorations & OB_FRAME_DECOR_ICON)
+        /* the small caption of dialogs/utility windows (macOS style) has
+           no window icon */
+        if (*lc == 'N' && (self->decorations & OB_FRAME_DECOR_ICON) &&
+            !wm_compact(self))
             return TRUE;
         if (*lc == 'D' && self->decorations & OB_FRAME_DECOR_ALLDESKTOPS)
             return TRUE;
@@ -1182,9 +1321,14 @@ static void layout_title(ObFrame *self)
     gchar *lc;
     gint i;
 
-    const gint bwidth = ob_rr_theme->button_size + ob_rr_theme->paddingx + 1;
-    /* position of the leftmost button */
-    const gint left = ob_rr_theme->paddingx + 1;
+    /* macOS metrics when the assets drive the caption: the traffic-light
+       group starts at x 7 and the cells are spaced 5 px apart; otherwise
+       upstream's padding-based layout applies */
+    const gint bwidth = ob_rr_theme->have_png_assets ?
+        ob_rr_theme->button_size + 5 :
+        ob_rr_theme->button_size + ob_rr_theme->paddingx + 1;
+    const gint left = ob_rr_theme->have_png_assets ?
+        7 : ob_rr_theme->paddingx + 1;
     /* position of the rightmost button */
     const gint right = self->width;
 
@@ -1253,22 +1397,59 @@ static void layout_title(ObFrame *self)
         }
     }
 
-    /* macOS-style centered title: when there are no buttons after the label,
-       the label region holds the width after the buttons that sit before it,
-       and the centered justification of the title text places it in the
-       center of the whole titlebar. Centering is undone if the title would
-       slide under the buttons on the left. */
+    /* macOS-style centered title: the title centers on the bar, measured
+       with the caption font and drawn as a just-fitting label window (the
+       traffic lights stack above the label window, so it may slide under
+       them). For captions too narrow for the text the leftover-region
+       layout of upstream with ellipsizing takes over. */
+    self->label_leftly = FALSE;
     if (self->label_on && self->rightmost == OB_FRAME_CONTEXT_NONE) {
-        gint x = (self->width - self->label_width) / 2;
-        if (x < label_minx) x = label_minx;
-        self->label_x = x;
+        const RrAppearance *la = ob_rr_theme->a_focused_label;
+        gint tw = -1;
+
+        if (la != NULL && la->textures == 1 &&
+            la->texture[0].type == RR_TEXTURE_TEXT)
+        {
+            const RrTextureText *t = &la->texture[0].data.text;
+            RrSize *m = RrFontMeasureString(t->font, self->client->title,
+                                            0, 0, FALSE, 0);
+            tw = m->width;
+            g_slice_free(RrSize, m);
+        }
+
+        if (tw >= 0 && tw <= self->label_width) {
+            /* the icon hangs off the left of the text with a 6 px gap and
+               the whole icon+text block centers on the bar */
+            gint block = tw + (self->icon_on ? 16 + 6 : 0);
+            gint x = (self->width - block) / 2;
+
+            if (x < label_minx) {
+                if (self->icon_on) {
+                    /* like macOS in a caption this narrow: drop the icon
+                       and try to still center the text */
+                    self->icon_on = FALSE;
+                    x = (self->width - tw) / 2;
+                }
+                if (x < label_minx) x = label_minx;
+                /* the label keeps its leftover width and theme justify */
+            } else {
+                if (self->icon_on) self->icon_x = x;
+                self->label_x = self->icon_on ? x + (16 + 6) : x;
+                self->label_width = tw;
+                self->label_leftly = TRUE;
+            }
+        } else {
+            gint x = (self->width - self->label_width) / 2;
+            if (x < label_minx) x = label_minx;
+            self->label_x = x;
+        }
     }
 
     /* position and map the elements */
     if (self->icon_on) {
         XMapWindow(obt_display, self->icon);
         XMoveWindow(obt_display, self->icon, self->icon_x,
-                    ob_rr_theme->paddingy);
+                    wm_icon_y(self));
     } else
         XUnmapWindow(obt_display, self->icon);
 
@@ -1289,28 +1470,28 @@ static void layout_title(ObFrame *self)
     if (self->iconify_on) {
         XMapWindow(obt_display, self->iconify);
         XMoveWindow(obt_display, self->iconify, self->iconify_x,
-                    ob_rr_theme->paddingy + 1);
+                    wm_button_y(self));
     } else
         XUnmapWindow(obt_display, self->iconify);
 
     if (self->max_on) {
         XMapWindow(obt_display, self->max);
         XMoveWindow(obt_display, self->max, self->max_x,
-                    ob_rr_theme->paddingy + 1);
+                    wm_button_y(self));
     } else
         XUnmapWindow(obt_display, self->max);
 
     if (self->close_on) {
         XMapWindow(obt_display, self->close);
         XMoveWindow(obt_display, self->close, self->close_x,
-                    ob_rr_theme->paddingy + 1);
+                    wm_button_y(self));
     } else
         XUnmapWindow(obt_display, self->close);
 
     if (self->label_on && self->label_width > 0) {
         XMapWindow(obt_display, self->label);
         XMoveWindow(obt_display, self->label, self->label_x,
-                    ob_rr_theme->paddingy);
+                    wm_label_y(self));
     } else
         XUnmapWindow(obt_display, self->label);
 }

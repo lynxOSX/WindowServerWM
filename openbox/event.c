@@ -28,9 +28,7 @@
 #include "screen.h"
 #include "frame.h"
 #include "grab.h"
-#include "menu.h"
 #include "prompt.h"
-#include "menuframe.h"
 #include "keyboard.h"
 #include "mouse.h"
 #include "focus.h"
@@ -82,8 +80,6 @@ typedef struct
 
 static void event_process(const XEvent *e, gpointer data);
 static void event_handle_root(XEvent *e);
-static gboolean event_handle_menu_input(XEvent *e);
-static void event_handle_menu(ObMenuFrame *frame, XEvent *e);
 static gboolean event_handle_prompt(ObPrompt *p, XEvent *e);
 static void event_handle_dock(ObDock *s, XEvent *e);
 static void event_handle_dockapp(ObDockApp *app, XEvent *e);
@@ -462,7 +458,6 @@ static void event_process(const XEvent *ec, gpointer data)
     ObDock *dock = NULL;
     ObDockApp *dockapp = NULL;
     ObWindow *obwin = NULL;
-    ObMenuFrame *menu = NULL;
     ObPrompt *prompt = NULL;
     gboolean used;
 
@@ -482,9 +477,6 @@ static void event_process(const XEvent *ec, gpointer data)
             client = WINDOW_AS_CLIENT(obwin);
             /* events on clients can be events on prompt windows too */
             prompt = client->prompt;
-            break;
-        case OB_WINDOW_CLASS_MENUFRAME:
-            menu = WINDOW_AS_MENUFRAME(obwin);
             break;
         case OB_WINDOW_CLASS_INTERNAL:
             /* we don't do anything with events directly on these windows */
@@ -634,8 +626,6 @@ static void event_process(const XEvent *ec, gpointer data)
         event_handle_dockapp(dockapp, e);
     else if (dock)
         event_handle_dock(dock, e);
-    else if (menu)
-        event_handle_menu(menu, e);
     else if (window == obt_root(ob_screen))
         event_handle_root(e);
     else if (e->type == MapRequest)
@@ -1001,9 +991,9 @@ static void event_handle_client(ObClient *client, XEvent *e)
     case ButtonRelease:
         /* Wheel buttons don't draw because they are an instant click, so it
            is a waste of resources to go drawing it.
-           if the user is doing an interactive thing, or has a menu open then
-           the mouse is grabbed (possibly) and if we get these events we don't
-           want to deal with them
+           If the user is doing an interactive thing then the mouse is
+           grabbed (possibly) and if we get these events we don't want to
+           deal with them
         */
         if (!(e->xbutton.button == 4 || e->xbutton.button == 5) &&
             !grab_on_keyboard())
@@ -1793,30 +1783,6 @@ static void event_handle_dockapp(ObDockApp *app, XEvent *e)
     }
 }
 
-static ObMenuFrame* find_active_menu(void)
-{
-    GList *it;
-    ObMenuFrame *ret = NULL;
-
-    for (it = menu_frame_visible; it; it = g_list_next(it)) {
-        ret = it->data;
-        if (ret->selected)
-            break;
-        ret = NULL;
-    }
-    return ret;
-}
-
-static ObMenuFrame* find_active_or_last_menu(void)
-{
-    ObMenuFrame *ret = NULL;
-
-    ret = find_active_menu();
-    if (!ret && menu_frame_visible)
-        ret = menu_frame_visible->data;
-    return ret;
-}
-
 static gboolean event_handle_prompt(ObPrompt *p, XEvent *e)
 {
     switch (e->type) {
@@ -1824,255 +1790,10 @@ static gboolean event_handle_prompt(ObPrompt *p, XEvent *e)
     case ButtonRelease:
     case MotionNotify:
         return prompt_mouse_event(p, e);
-        break;
     case KeyPress:
         return prompt_key_event(p, e);
-        break;
     }
     return FALSE;
-}
-
-static gboolean event_handle_menu_input(XEvent *ev)
-{
-    gboolean ret = FALSE;
-
-    if (ev->type == ButtonRelease || ev->type == ButtonPress) {
-        ObMenuEntryFrame *e;
-
-        if ((ev->xbutton.button < 4 || ev->xbutton.button > 5) &&
-            ((ev->type == ButtonRelease && menu_hide_delay_reached()) ||
-             ev->type == ButtonPress))
-        {
-            if ((e = menu_entry_frame_under(ev->xbutton.x_root,
-                                            ev->xbutton.y_root)))
-            {
-                if (ev->type == ButtonPress) {
-                    /* We know this is a new press, so we don't have to
-                     * block release events anymore */
-                    menu_hide_delay_reset();
-
-                    if (e->frame->child)
-                        menu_frame_select(e->frame->child, NULL, TRUE);
-                }
-                menu_frame_select(e->frame, e, TRUE);
-                if (ev->type == ButtonRelease)
-                    menu_entry_frame_execute(e, ev->xbutton.state);
-            }
-            else
-                menu_frame_hide_all();
-        }
-        ret = TRUE;
-    }
-    else if (ev->type == KeyPress || ev->type == KeyRelease) {
-        guint mods;
-        ObMenuFrame *frame;
-
-        /* get the modifiers */
-        mods = obt_keyboard_only_modmasks(ev->xkey.state);
-
-        frame = find_active_or_last_menu();
-        if (frame == NULL)
-            g_assert_not_reached(); /* there is no active menu */
-
-        /* Allow control while going thru the menu */
-        else if (ev->type == KeyPress && (mods & ~ControlMask) == 0) {
-            gunichar unikey;
-            KeySym sym;
-
-            frame->got_press = TRUE;
-            frame->press_keycode = ev->xkey.keycode;
-            frame->press_doexec = FALSE;
-
-            sym = obt_keyboard_keypress_to_keysym(ev);
-
-            if (sym == XK_Escape) {
-                menu_frame_hide_all();
-                ret = TRUE;
-            }
-
-            else if (sym == XK_Left) {
-                /* Left goes to the parent menu */
-                if (frame->parent) {
-                    /* remove focus from the child */
-                    menu_frame_select(frame, NULL, TRUE);
-                    /* and put it in the parent */
-                    menu_frame_select(frame->parent, frame->parent->selected,
-                                      TRUE);
-                }
-                ret = TRUE;
-            }
-
-            else if (sym == XK_Right || sym == XK_Return || sym == XK_KP_Enter)
-            {
-                /* Right and enter goes to the selected submenu.
-                   Enter executes instead if it's not on a submenu. */
-
-                if (frame->selected) {
-                    const ObMenuEntryType t = frame->selected->entry->type;
-
-                    if (t == OB_MENU_ENTRY_TYPE_SUBMENU) {
-                        /* make sure it is visible */
-                        menu_frame_select(frame, frame->selected, TRUE);
-                        /* move focus to the child menu */
-                        menu_frame_select_next(frame->child);
-                    }
-                    else if (sym != XK_Right) {
-                        frame->press_doexec = TRUE;
-                    }
-                }
-                ret = TRUE;
-            }
-
-            else if (sym == XK_Up) {
-                menu_frame_select_previous(frame);
-                ret = TRUE;
-            }
-
-            else if (sym == XK_Down) {
-                menu_frame_select_next(frame);
-                ret = TRUE;
-            }
-
-            else if (sym == XK_Home) {
-                menu_frame_select_first(frame);
-                ret = TRUE;
-            }
-
-            else if (sym == XK_End) {
-                menu_frame_select_last(frame);
-                ret = TRUE;
-            }
-
-            /* keyboard accelerator shortcuts. (if it was a valid key) */
-            else if (frame->entries &&
-                     (unikey =
-                      obt_keyboard_keypress_to_unichar(menu_frame_ic(frame),
-                                                       ev)))
-            {
-                GList *start;
-                GList *it;
-                ObMenuEntryFrame *found = NULL;
-                guint num_found = 0;
-
-                /* start after the selected one */
-                start = frame->entries;
-                if (frame->selected) {
-                    for (it = start; frame->selected != it->data;
-                         it = g_list_next(it))
-                        g_assert(it != NULL); /* nothing was selected? */
-                    /* next with wraparound */
-                    start = g_list_next(it);
-                    if (start == NULL) start = frame->entries;
-                }
-
-                it = start;
-                do {
-                    ObMenuEntryFrame *e = it->data;
-                    gunichar entrykey = 0;
-
-                    if (e->entry->type == OB_MENU_ENTRY_TYPE_NORMAL)
-                        entrykey = e->entry->data.normal.shortcut;
-                    else if (e->entry->type == OB_MENU_ENTRY_TYPE_SUBMENU)
-                        entrykey = e->entry->data.submenu.submenu->shortcut;
-
-                    if (unikey == entrykey) {
-                        if (found == NULL) found = e;
-                        ++num_found;
-                    }
-
-                    /* next with wraparound */
-                    it = g_list_next(it);
-                    if (it == NULL) it = frame->entries;
-                } while (it != start);
-
-                if (found) {
-                    menu_frame_select(frame, found, TRUE);
-
-                    if (num_found == 1) {
-                        if (found->entry->type == OB_MENU_ENTRY_TYPE_SUBMENU) {
-                            /* move focus to the child menu */
-                            menu_frame_select_next(frame->child);
-                        }
-                        else {
-                            frame->press_doexec = TRUE;
-                        }
-                    }
-                    ret = TRUE;
-                }
-            }
-        }
-
-        /* Use KeyRelease events for running things so that the key release
-           doesn't get sent to the focused application.
-
-           Allow ControlMask only, and don't bother if the menu is empty */
-        else if (ev->type == KeyRelease && (mods & ~ControlMask) == 0) {
-            if (frame->press_keycode == ev->xkey.keycode &&
-                frame->got_press &&
-                frame->press_doexec)
-            {
-                if (frame->selected)
-                    menu_entry_frame_execute(frame->selected, ev->xkey.state);
-            }
-        }
-    }
-
-    return ret;
-}
-
-static gboolean event_look_for_menu_enter(XEvent *ev, gpointer data)
-{
-    const ObMenuFrame *f = (ObMenuFrame*)data;
-    ObMenuEntryFrame *e;
-    return ev->type == EnterNotify &&
-        (e = g_hash_table_lookup(menu_frame_map, &ev->xcrossing.window)) &&
-        e->frame == f && !e->ignore_enters;
-}
-
-static void event_handle_menu(ObMenuFrame *frame, XEvent *ev)
-{
-    ObMenuFrame *f;
-    ObMenuEntryFrame *e;
-
-    switch (ev->type) {
-    case MotionNotify:
-        /* We need to catch MotionNotify in addition to EnterNotify because
-           it is possible for the menu to be opened under the mouse cursor, and
-           moving the mouse should select the item. */
-        if ((e = g_hash_table_lookup(menu_frame_map, &ev->xmotion.window))) {
-            if (e->ignore_enters)
-                --e->ignore_enters;
-            else if (!(f = find_active_menu()) ||
-                     f == e->frame ||
-                     f->parent == e->frame ||
-                     f->child == e->frame)
-                menu_frame_select(e->frame, e, FALSE);
-        }
-        break;
-    case EnterNotify:
-        if ((e = g_hash_table_lookup(menu_frame_map, &ev->xcrossing.window))) {
-            if (e->ignore_enters)
-                --e->ignore_enters;
-            else if (!(f = find_active_menu()) ||
-                     f == e->frame ||
-                     f->parent == e->frame ||
-                     f->child == e->frame)
-                menu_frame_select(e->frame, e, FALSE);
-        }
-        break;
-    case LeaveNotify:
-        /* ignore leaves when we're already in the window */
-        if (ev->xcrossing.detail == NotifyInferior)
-            break;
-
-        if ((e = g_hash_table_lookup(menu_frame_map, &ev->xcrossing.window))) {
-            /* check if an EnterNotify event is coming, and if not, then select
-               nothing in the menu */
-            if (!xqueue_exists_local(event_look_for_menu_enter, e->frame))
-                menu_frame_select(e->frame, NULL, FALSE);
-        }
-        break;
-    }
 }
 
 static gboolean event_handle_user_input(ObClient *client, XEvent *e)
@@ -2080,14 +1801,6 @@ static gboolean event_handle_user_input(ObClient *client, XEvent *e)
     g_assert(e->type == ButtonPress || e->type == ButtonRelease ||
              e->type == MotionNotify || e->type == KeyPress ||
              e->type == KeyRelease);
-
-    if (menu_frame_visible) {
-        if (event_handle_menu_input(e))
-            /* don't use the event if the menu used it, but if the menu
-               didn't use it and it's a keypress that is bound, it will
-               close the menu and be used */
-            return TRUE;
-    }
 
     /* if the keyboard interactive action uses the event then dont
        use it for bindings. likewise is moveresize uses the event. */
@@ -2231,10 +1944,6 @@ void event_cancel_all_key_grabs(void)
     if (actions_interactive_act_running()) {
         actions_interactive_cancel_act();
         ob_debug("KILLED interactive action");
-    }
-    else if (menu_frame_visible) {
-        menu_frame_hide_all();
-        ob_debug("KILLED open menus");
     }
     else if (moveresize_in_progress) {
         moveresize_end(TRUE);

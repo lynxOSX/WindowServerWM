@@ -154,9 +154,14 @@ struct _ObFrame
     gint      close_on;   /* if the window close button is on */
 
     gint      width;         /* width of the titlebar and handle */
+    gint      title_height;  /* height of the titlebar (compact for
+                                dialog/Utility windows, as on macOS X) */
     gint      label_width;   /* width of the label in the titlebar */
     gint      icon_x;        /* x-position of the window icon button */
     gint      label_x;       /* x-position of the window title */
+    /* WindowServerWM fork: when the title is centered on the measured text
+       the glyphs draw at the left edge of the (just-fitting) label window */
+    gboolean  label_leftly;
     gint      iconify_x;     /* x-position of the window iconify button */
     gint      desk_x;        /* x-position of the window all-desktops button */
     gint      shade_x;       /* x-position of the window shade button */

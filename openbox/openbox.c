@@ -22,7 +22,6 @@
 #include "session.h"
 #include "dock.h"
 #include "event.h"
-#include "menu.h"
 #include "client.h"
 #include "screen.h"
 #include "actions.h"
@@ -36,7 +35,6 @@
 #include "framerender.h"
 #include "keyboard.h"
 #include "mouse.h"
-#include "menuframe.h"
 #include "grab.h"
 #include "group.h"
 #include "config.h"
@@ -186,8 +184,8 @@ gint main(gint argc, gchar **argv)
     if (ob_rr_inst == NULL)
         ob_exit_with_error(_("Failed to initialize the obrender library."));
     /* Saving 3 resizes of an RrImage makes a lot of sense for icons, as there
-       are generally 3 icon sizes needed: the titlebar icon, the menu icon,
-       and the alt-tab icon
+       are generally 3 icon sizes needed: the titlebar icon, the alt-tab
+       icon, and here the window menu icon used to be
     */
     ob_rr_icons = RrImageCacheNew(3);
 
@@ -338,8 +336,6 @@ gint main(gint argc, gchar **argv)
             moveresize_startup(reconfigure);
             keyboard_startup(reconfigure);
             mouse_startup(reconfigure);
-            menu_frame_startup(reconfigure);
-            menu_startup(reconfigure);
             prompt_startup(reconfigure);
 
             if (!reconfigure) {
@@ -405,8 +401,6 @@ gint main(gint argc, gchar **argv)
                 window_unmanage_all();
 
             prompt_shutdown(reconfigure);
-            menu_shutdown(reconfigure);
-            menu_frame_shutdown(reconfigure);
             mouse_shutdown(reconfigure);
             keyboard_shutdown(reconfigure);
             moveresize_shutdown(reconfigure);

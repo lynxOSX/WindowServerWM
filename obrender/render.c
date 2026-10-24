@@ -170,6 +170,18 @@ Pixmap RrPaintPixmap(RrAppearance *a, gint w, gint h)
             }
             force_transfer = 1;
         break;
+        case RR_TEXTURE_9SLICE:
+            g_assert(!transferred);
+            {
+                RrTexture9Slice *ns = &a->texture[i].data.nineslice;
+                RrImageDrawNineSlice(a->surface.pixel_data,
+                                     ns->data, ns->width, ns->height,
+                                     ns->mx, ns->my, ns->mb,
+                                     a->w, a->h,
+                                     &tarea);
+            }
+            force_transfer = 1;
+        break;
         case RR_TEXTURE_NUM_TYPES:
             g_assert_not_reached();
         }
@@ -427,7 +439,9 @@ gint RrMinWidth(RrAppearance *a)
             w += MAX(w, a->texture[i].data.rgba.width);
             break;
         case RR_TEXTURE_IMAGE:
-            /* images resize so they don't contribute anything to the min */
+        case RR_TEXTURE_9SLICE:
+            /* (nine-slice) images resize so they don't contribute anything
+               to the min */
             break;
         case RR_TEXTURE_LINE_ART:
             w = MAX(w, MAX(a->texture[i].data.lineart.x1 - l - r,
@@ -484,7 +498,9 @@ gint RrMinHeight(RrAppearance *a)
             h += MAX(h, a->texture[i].data.rgba.height);
             break;
         case RR_TEXTURE_IMAGE:
-            /* images resize so they don't contribute anything to the min */
+        case RR_TEXTURE_9SLICE:
+            /* (nine-slice) images resize so they don't contribute anything
+               to the min */
             break;
         case RR_TEXTURE_LINE_ART:
             h = MAX(h, MAX(a->texture[i].data.lineart.y1 - t - b,

@@ -1,16 +1,19 @@
-!# WindowServer :: placeholder theme
+!# WindowServer :: macOS X theme
 !#
-!# A placeholder macOS X-style theme for WindowServerWM. This file is a system
+!# A macOS X-style theme for WindowServerWM. This file is a system
 !# asset at a hardcoded location (not user-selectable) — see WINDOWSERVERWM_*
 !# constants in obrender/theme.c and openbox/openbox.c. To use a development
 !# copy, unpack a theme tree under WINDOWSERVERWM_THEMES_PATH:
 !#     <root>/<name>/openbox-3/themerc
 !#
 !# Layout follows macOS X: traffic-light buttons (close, minimize, zoom) down
-!# the left side of the titlebar, title centered in the bar. The three
-!# buttons below are colored via per-button image colors over the builtin
-!# glyph masks (X, bottom bar, zoom box) — placeholder art until the real
-!# handler/button artwork exists.
+!# the left side of the titlebar, title centered in the bar. The whole bar is
+!# the cougar caption strip as a nine-slice; the button PNGs in assets/ are
+!# the traffic lights per state. Both are applied in obrender/theme.c when
+!# the asset pack is present; the image colors below only matter for the
+!# glyph-mask fallback when the pngs are missing. Fonts are set in rc.xml;
+!# dialog/utility windows get the compact 14 px caption from openbox/frame.c.
+!# The asset spec is guide_PRIVATE/windowcontrols_Ref/DESIGN-GUIDE.md.
 !#
 !# The centered title comes from config titleLayout CIML (see openbox/config.c
 !# and the hardcoded rc.xml) + the center beings justify below.
