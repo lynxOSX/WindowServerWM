@@ -1101,9 +1101,11 @@ RrTheme* RrThemeNew(const RrInstance *inst, const gchar *name,
     theme->a_menu_bullet_selected->texture[0].data.mask.color =
         theme->menu_bullet_selected_color;
 
-    g_free(path);
+    /* NOTE: `path` stays alive until load_png_assets() below has used it —
+       freeing it here was a use-after-free: the asset dir stat got garbage
+       and the whole WindowServer asset pack silently never loaded (titlebar
+       and traffic lights permanently on the glyph-mask fallback). */
     XrmDestroyDatabase(db);
-
     /* set the font heights */
     theme->win_font_height = RrFontHeight(theme->win_font_focused,
         theme->a_focused_label->texture[0].data.text.shadow_offset_y);
@@ -1162,6 +1164,7 @@ RrTheme* RrThemeNew(const RrInstance *inst, const gchar *name,
     RrAppearanceFree(fbs.unfocused_pressed_toggled);
 
     load_png_assets(theme, path);
+    g_free(path);
 
     return theme;
 }
