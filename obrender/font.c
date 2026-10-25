@@ -134,6 +134,50 @@ RrFont *RrFontOpenDefault(const RrInstance *inst)
                       RrDefaultFontWeight, RrDefaultFontSlant);
 }
 
+/* WindowServerWM fork: a copy of an existing font scaled to a fraction of
+   its size — the compact caption of dialog/utility windows uses a smaller
+   face of the same family (macOS X's small titlebar font) */
+RrFont *RrFontCopyScaled(const RrFont *src, gdouble scale)
+{
+    RrFont *out;
+    PangoAttrList *attrlist;
+
+    g_return_val_if_fail(src != NULL, NULL);
+
+    out = g_slice_new(RrFont);
+    out->inst = src->inst;
+    out->ref = 1;
+    out->font_desc = pango_font_description_copy(src->font_desc);
+    out->layout = pango_layout_new(out->inst->pango);
+    out->shortcut_underline = pango_attr_underline_new(PANGO_UNDERLINE_SINGLE);
+    out->shortcut_underline->start_index = 0;
+    out->shortcut_underline->end_index = 0;
+
+    attrlist = pango_attr_list_new();
+    /* shortcut_underline is owned by the attrlist */
+    pango_attr_list_insert(attrlist, out->shortcut_underline);
+    /* the attributes are owned by the layout */
+    pango_layout_set_attributes(out->layout, attrlist);
+    pango_attr_list_unref(attrlist);
+
+    /* scale the size, keeping absolute-size fonts absolute */
+    if (pango_font_description_get_size_is_absolute(src->font_desc))
+        pango_font_description_set_absolute_size(
+            out->font_desc,
+            (gint)(pango_font_description_get_size(src->font_desc) * scale));
+    else
+        pango_font_description_set_size(
+            out->font_desc,
+            (gint)(pango_font_description_get_size(src->font_desc) * scale));
+
+    pango_layout_set_font_description(out->layout, out->font_desc);
+    pango_layout_set_wrap(out->layout, PANGO_WRAP_WORD_CHAR);
+
+    measure_font(out->inst, out);
+
+    return out;
+}
+
 void RrFontRef(RrFont *f)
 {
     ++f->ref;

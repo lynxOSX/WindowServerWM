@@ -39,4 +39,8 @@ void RrFontDraw(XftDraw *d, RrTextureText *t, RrRect *position);
   and then really close it */
 void RrFontRef(RrFont *f);
 
+/* WindowServerWM fork: a scaled-down copy of an existing font (same family,
+   weight and slant), for the compact caption of dialog/utility windows */
+RrFont *RrFontCopyScaled(const RrFont *src, gdouble scale);
+
 #endif /* __font_h */

@@ -33,12 +33,26 @@ static void framerender_shade(ObFrame *self, RrAppearance *a);
 static void framerender_close(ObFrame *self, RrAppearance *a);
 
 /* WindowServerWM fork: position the traffic lights on the caption strip
-   (the artwork's metrics); upstream used paddingy + 1 */
+   (the artwork's metrics); upstream used paddingy + 1. The compact caption
+   of dialog/utility windows is a 14 px strip with 12 px buttons centered
+   in it — must match openbox/frame.c. */
+static gboolean wm_compact(const ObFrame *self)
+{
+    return self->client->type == OB_CLIENT_TYPE_DIALOG ||
+           self->client->type == OB_CLIENT_TYPE_UTILITY;
+}
+
+static gint wm_button_size(const ObFrame *self)
+{
+    return wm_compact(self) ? 12 : ob_rr_theme->button_size;
+}
+
 static gint wm_button_y(const ObFrame *self)
 {
+    if (wm_compact(self))
+        return MAX(0, (self->title_height - 12) / 2);
     if (ob_rr_theme->have_png_assets) {
-        /* full caption: the cells sit at y 4; the small caption is shorter
-           than the cells and clips them flush at its top */
+        /* full caption: the cells sit at y 4 */
         return self->title_height >= ob_rr_theme->button_size ? 4 : 0;
     }
     return MAX(0, (self->title_height - ob_rr_theme->button_size) / 2);
@@ -46,7 +60,9 @@ static gint wm_button_y(const ObFrame *self)
 
 static gint wm_label_y(const ObFrame *self)
 {
-    return MAX(0, (self->title_height - ob_rr_theme->label_height) / 2);
+    const gint lh = wm_compact(self) ? ob_rr_theme->compact_label_height
+                                     : ob_rr_theme->label_height;
+    return MAX(0, (self->title_height - lh) / 2);
 }
 
 /* matches frame.c: the 16 px window icon centers in the caption strip */
@@ -380,7 +396,19 @@ static void framerender_label(ObFrame *self, RrAppearance *a)
        label window and its glyphs draw from the left edge of it */
     a->texture[0].data.text.justify = self->label_leftly ?
         RR_JUSTIFY_LEFT : RR_JUSTIFY_CENTER;
-    RrPaint(a, self->label, self->label_width, ob_rr_theme->label_height);
+    /* WindowServerWM fork: the compact caption of dialog/utility windows
+       paints with the smaller compact font in a shorter label window */
+    if (wm_compact(self)) {
+        a->texture[0].data.text.font = self->focused ?
+            ob_rr_theme->win_font_compact_focused :
+            ob_rr_theme->win_font_compact_unfocused;
+        RrPaint(a, self->label, self->label_width,
+                ob_rr_theme->compact_label_height);
+    } else {
+        a->texture[0].data.text.font = self->focused ?
+            ob_rr_theme->win_font_focused : ob_rr_theme->win_font_unfocused;
+        RrPaint(a, self->label, self->label_width, ob_rr_theme->label_height);
+    }
 }
 
 static void framerender_icon(ObFrame *self, RrAppearance *a)
@@ -408,32 +436,29 @@ static void framerender_icon(ObFrame *self, RrAppearance *a)
 static void framerender_max(ObFrame *self, RrAppearance *a)
 {
     if (!self->max_on) return;
-    RrPaint(a, self->max, ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->max, wm_button_size(self), wm_button_size(self));
 }
 
 static void framerender_iconify(ObFrame *self, RrAppearance *a)
 {
     if (!self->iconify_on) return;
-    RrPaint(a, self->iconify,
-            ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->iconify, wm_button_size(self), wm_button_size(self));
 }
 
 static void framerender_desk(ObFrame *self, RrAppearance *a)
 {
     if (!self->desk_on) return;
-    RrPaint(a, self->desk, ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->desk, wm_button_size(self), wm_button_size(self));
 }
 
 static void framerender_shade(ObFrame *self, RrAppearance *a)
 {
     if (!self->shade_on) return;
-    RrPaint(a, self->shade,
-            ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->shade, wm_button_size(self), wm_button_size(self));
 }
 
 static void framerender_close(ObFrame *self, RrAppearance *a)
 {
     if (!self->close_on) return;
-    RrPaint(a, self->close,
-            ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->close, wm_button_size(self), wm_button_size(self));
 }

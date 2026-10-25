@@ -1171,9 +1171,11 @@ void RrImageDrawImage(RrPixel32 *target, RrTextureImage *img,
         else {
             /* add the resized image to the image, as the first in the resized
                list */
-            while (set->n_resized >= set->cache->max_resized_saved)
-                /* remove the last one (last used one) to make space for
-                 adding our resized picture */
+            /* make room for adding our resized picture; when the cache
+               saves no resized pictures (max_resized_saved == 0) there is
+               nothing to remove and the pic is freed below instead */
+            while (set->n_resized > 0 &&
+                   set->n_resized >= set->cache->max_resized_saved)
                 RrImageSetRemovePictureAt(set, set->n_resized-1, FALSE);
             if (set->cache->max_resized_saved)
                 /* add it to the resized list */

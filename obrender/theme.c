@@ -37,6 +37,10 @@
    running a development build against an unpacked theme tree. */
 #define WINDOWSERVERWM_THEMES_PATH "/System/Library/CoreServices/WindowServerWM/themes"
 
+/* WindowServerWM: scale of the compact caption's font relative to the window
+   font (macOS X: the small titlebar uses a smaller face of the same font) */
+#define WM_COMPACT_FONT_SCALE 0.75
+
 struct fallbacks {
     RrAppearance *focused_disabled;
     RrAppearance *unfocused_disabled;
@@ -392,6 +396,13 @@ RrTheme* RrThemeNew(const RrInstance *inst, const gchar *name,
                                        &default_font, inst);
     theme->win_font_unfocused = get_font(inactive_window_font,
                                          &default_font, inst);
+
+    /* WindowServerWM: the compact caption of dialog/utility windows uses a
+       smaller face of the same font (macOS X's small titlebar text) */
+    theme->win_font_compact_focused =
+        RrFontCopyScaled(theme->win_font_focused, WM_COMPACT_FONT_SCALE);
+    theme->win_font_compact_unfocused =
+        RrFontCopyScaled(theme->win_font_unfocused, WM_COMPACT_FONT_SCALE);
 
     winjust = RR_JUSTIFY_LEFT;
     if (read_string(db, "window.label.text.justify", &str)) {
@@ -1127,6 +1138,17 @@ RrTheme* RrThemeNew(const RrInstance *inst, const gchar *name,
         theme->label_height = theme->win_font_height + MAX(ft + fb, ut + ub);
         theme->label_height += theme->label_height % 2;
 
+        /* WindowServerWM: same for the compact caption of dialog/utility
+           windows, with the smaller compact font */
+        theme->compact_win_font_height =
+            MAX(RrFontHeight(theme->win_font_compact_focused,
+                theme->a_focused_label->texture[0].data.text.shadow_offset_y),
+                RrFontHeight(theme->win_font_compact_unfocused,
+                theme->a_unfocused_label->texture[0].data.text.shadow_offset_y));
+        theme->compact_label_height =
+            theme->compact_win_font_height + MAX(ft + fb, ut + ub);
+        theme->compact_label_height += theme->compact_label_height % 2;
+
         /* this would be nice I think, since padding.width can now be 0,
            but it breaks frame.c horribly and I don't feel like fixing that
            right now, so if anyone complains, here is how to keep text from
@@ -1244,6 +1266,8 @@ void RrThemeFree(RrTheme *theme)
 
         RrFontClose(theme->win_font_focused);
         RrFontClose(theme->win_font_unfocused);
+        RrFontClose(theme->win_font_compact_focused);
+        RrFontClose(theme->win_font_compact_unfocused);
         RrFontClose(theme->menu_title_font);
         RrFontClose(theme->menu_font);
         RrFontClose(theme->osd_font_hilite);

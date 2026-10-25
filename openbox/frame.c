@@ -50,26 +50,40 @@ static gboolean flash_timeout(gpointer data);
 
 static void layout_title(ObFrame *self);
 /* WindowServerWM fork: dialog and utility windows get a compact caption
-   like macOS X's small titlebar; the traffic-light cells stay at their
-   intrinsic 14x16 size and get clipped by the shorter strip. In the full
-   23 px strip they are vertically centered. */
+   like macOS X's small titlebar: a 14 px strip with 12 px traffic lights
+   spaced 7 px apart, starting at x 6, and a smaller title font. */
+#define WM_COMPACT_TITLE_HEIGHT 14
+#define WM_COMPACT_BUTTON_SIZE  12
+#define WM_COMPACT_BUTTON_SPACING 7
+#define WM_COMPACT_BUTTON_LEFT  6
+
 static gboolean wm_compact(const ObFrame *self)
 {
     return self->client->type == OB_CLIENT_TYPE_DIALOG ||
            self->client->type == OB_CLIENT_TYPE_UTILITY;
 }
 
+/* the caption's button size: 12 px in the compact caption, the theme's
+   (16 px asset) cells in the full one */
+static gint wm_button_size(const ObFrame *self)
+{
+    return wm_compact(self) ? WM_COMPACT_BUTTON_SIZE : ob_rr_theme->button_size;
+}
+
 static void wm_set_metrics(ObFrame *self)
 {
-    self->title_height = wm_compact(self) ? 14 : ob_rr_theme->title_height;
+    self->title_height = wm_compact(self) ? WM_COMPACT_TITLE_HEIGHT
+                                          : ob_rr_theme->title_height;
 }
 
 static gint wm_button_y(const ObFrame *self)
 {
+    if (wm_compact(self))
+        /* the small caption centers its 12 px buttons */
+        return MAX(0, (self->title_height - WM_COMPACT_BUTTON_SIZE) / 2);
     if (ob_rr_theme->have_png_assets) {
         /* full caption: the traffic-light cells sit at y 4 (the artwork's
-           metrics); the small caption is shorter than the cells, they clip
-           flush at its top */
+           metrics) */
         return self->title_height >= ob_rr_theme->button_size ? 4 : 0;
     }
     return MAX(0, (self->title_height - ob_rr_theme->button_size) / 2);
@@ -77,7 +91,9 @@ static gint wm_button_y(const ObFrame *self)
 
 static gint wm_label_y(const ObFrame *self)
 {
-    return MAX(0, (self->title_height - ob_rr_theme->label_height) / 2);
+    const gint lh = wm_compact(self) ? ob_rr_theme->compact_label_height
+                                     : ob_rr_theme->label_height;
+    return MAX(0, (self->title_height - lh) / 2);
 }
 
 /* WindowServerWM fork: the 16 px window icon centers vertically in the
@@ -255,9 +271,9 @@ static void set_theme_statics(ObFrame *self)
     XResizeWindow(obt_display, self->trtresize,
                   ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
     XResizeWindow(obt_display, self->tllresize,
-                  ob_rr_theme->paddingx + 1, ob_rr_theme->title_height);
+                  ob_rr_theme->paddingx + 1, self->title_height);
     XResizeWindow(obt_display, self->trrresize,
-                  ob_rr_theme->paddingx + 1, ob_rr_theme->title_height);
+                  ob_rr_theme->paddingx + 1, self->title_height);
 }
 
 static void free_theme_statics(ObFrame *self)
@@ -1019,7 +1035,8 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
         self->label_width)
     {
         XResizeWindow(obt_display, self->label, self->label_width,
-                      ob_rr_theme->label_height);
+                      wm_compact(self) ? ob_rr_theme->compact_label_height
+                                       : ob_rr_theme->label_height);
     }
 }
 
@@ -1322,13 +1339,17 @@ static void layout_title(ObFrame *self)
     gint i;
 
     /* macOS metrics when the assets drive the caption: the traffic-light
-       group starts at x 7 and the cells are spaced 5 px apart; otherwise
-       upstream's padding-based layout applies */
+       group starts at x 7 and the cells are spaced 5 px apart; the compact
+       caption of dialogs/utility windows uses 12 px buttons spaced 7 px
+       apart starting at x 6; otherwise upstream's padding-based layout
+       applies */
     const gint bwidth = ob_rr_theme->have_png_assets ?
-        ob_rr_theme->button_size + 5 :
+        (wm_compact(self) ? WM_COMPACT_BUTTON_SIZE + WM_COMPACT_BUTTON_SPACING
+                          : ob_rr_theme->button_size + 5) :
         ob_rr_theme->button_size + ob_rr_theme->paddingx + 1;
     const gint left = ob_rr_theme->have_png_assets ?
-        7 : ob_rr_theme->paddingx + 1;
+        (wm_compact(self) ? WM_COMPACT_BUTTON_LEFT : 7) :
+        ob_rr_theme->paddingx + 1;
     /* position of the rightmost button */
     const gint right = self->width;
 
@@ -1410,8 +1431,16 @@ static void layout_title(ObFrame *self)
         if (la != NULL && la->textures == 1 &&
             la->texture[0].type == RR_TEXTURE_TEXT)
         {
-            const RrTextureText *t = &la->texture[0].data.text;
-            RrSize *m = RrFontMeasureString(t->font, self->client->title,
+            /* measure with the theme's window font, not the appearance's
+               texture font: framerender_label swaps the compact caption's
+               smaller font into the shared label appearances, so the
+               texture pointer may point at the compact font */
+            const RrFont *mf = wm_compact(self) ?
+                (self->focused ? ob_rr_theme->win_font_compact_focused
+                               : ob_rr_theme->win_font_compact_unfocused) :
+                (self->focused ? ob_rr_theme->win_font_focused
+                               : ob_rr_theme->win_font_unfocused);
+            RrSize *m = RrFontMeasureString(mf, self->client->title,
                                             0, 0, FALSE, 0);
             tw = m->width;
             g_slice_free(RrSize, m);
@@ -1468,6 +1497,8 @@ static void layout_title(ObFrame *self)
         XUnmapWindow(obt_display, self->shade);
 
     if (self->iconify_on) {
+        XResizeWindow(obt_display, self->iconify,
+                      wm_button_size(self), wm_button_size(self));
         XMapWindow(obt_display, self->iconify);
         XMoveWindow(obt_display, self->iconify, self->iconify_x,
                     wm_button_y(self));
@@ -1475,6 +1506,8 @@ static void layout_title(ObFrame *self)
         XUnmapWindow(obt_display, self->iconify);
 
     if (self->max_on) {
+        XResizeWindow(obt_display, self->max,
+                      wm_button_size(self), wm_button_size(self));
         XMapWindow(obt_display, self->max);
         XMoveWindow(obt_display, self->max, self->max_x,
                     wm_button_y(self));
@@ -1482,6 +1515,8 @@ static void layout_title(ObFrame *self)
         XUnmapWindow(obt_display, self->max);
 
     if (self->close_on) {
+        XResizeWindow(obt_display, self->close,
+                      wm_button_size(self), wm_button_size(self));
         XMapWindow(obt_display, self->close);
         XMoveWindow(obt_display, self->close, self->close_x,
                     wm_button_y(self));

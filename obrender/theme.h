@@ -32,6 +32,9 @@ struct _RrTheme {
     /* style settings - fonts */
     RrFont *win_font_focused;
     RrFont *win_font_unfocused;
+    RrFont *win_font_compact_focused; /*!< small caption of dialog/utility
+                                           windows (WindowServerWM) */
+    RrFont *win_font_compact_unfocused;
     RrFont *menu_title_font;
     RrFont *menu_font;
     RrFont *osd_font_hilite;
@@ -54,6 +57,8 @@ struct _RrTheme {
     gint menu_sep_paddingy;
     /* these ones are calculated, not set directly by the theme file */
     gint win_font_height;
+    gint compact_win_font_height; /*!< font height of the compact caption */
+    gint compact_label_height; /*!< label height in the compact caption */
     gint menu_title_font_height;
     gint menu_font_height;
     gint label_height;
