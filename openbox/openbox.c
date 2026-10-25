@@ -53,7 +53,7 @@
 /* The configuration is a system asset at a hardcoded location, mirror of the
    theme (see obrender/theme.c). Not user-editable, no config manager. The
    environment override exists just for running a development build. */
-#define WINDOWSERVERWM_CONFIG_PATH "/Library/WindowServerWM/rc.xml"
+#define WINDOWSERVERWM_CONFIG_PATH "/System/Library/CoreServices/WindowServerWM/rc.xml"
 
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>

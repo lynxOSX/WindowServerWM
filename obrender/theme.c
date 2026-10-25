@@ -35,7 +35,7 @@
    location. Theme names resolve inside this root:
    <root>/<name>/openbox-3/themerc. The environment override exists just for
    running a development build against an unpacked theme tree. */
-#define WINDOWSERVERWM_THEMES_PATH "/Library/WindowServerWM/Themes"
+#define WINDOWSERVERWM_THEMES_PATH "/System/Library/CoreServices/WindowServerWM/themes"
 
 struct fallbacks {
     RrAppearance *focused_disabled;

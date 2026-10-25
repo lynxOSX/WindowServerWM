@@ -5,7 +5,7 @@
 <!-- WindowServerWM :: basic configuration.
      The running window manager loads its config from a hardcoded location
      (see WINDOWSERVERWM_CONFIG_PATH in openbox/openbox.c): on lynxOS this
-     file is installed at /Library/WindowServerWM/rc.xml. It is a system
+     file is installed at /System/Library/CoreServices/WindowServerWM/rc.xml. It is a system
      asset, not user-editable; themes are hardcoded the same way (themerc,
      see the WindowServer theme under themes/).
 
