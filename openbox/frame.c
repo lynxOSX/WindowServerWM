@@ -326,12 +326,12 @@ void frame_adjust_theme(ObFrame *self)
 }
 
 #ifdef SHAPE
-/* WindowServerWM fork: macOS X rounds the corners of framed windows.
+/* WindowServerWM fork: macOS X rounds the top corners of framed windows.
    The caption art carries the window's own antialiased corner curve in
    its transparent pixels: the top corners of the shape follow that
    outline, so the shape's outline and the outline of the artwork are
-   the same. The bottom corners get a circular arc of the configured
-   radius (no art fallback: arcs on all corners). */
+   the same. The bottom corners stay square (macOS X), as do windows
+   with a compact caption. */
 static gint wm_corner_radius(void)
 {
     static gint r = -2; /* cache the env value, it is read only at startup */
@@ -392,19 +392,9 @@ static Pixmap wm_rounded_frame_mask(gint w, gint h, gint r)
         XFillArc(obt_display, pm, gc, w - 2 * r, 0, 2 * r, 2 * r, 0, 5760);
     }
 
-    /* the middle and the bottom corners (circular arc) */
-    if (r > 0 && h > 2 * r && h > 6 + r) {
-        /* straight edges down to the bottom arc band, then the inner
-           strip between the arcs, then the two corner discs */
-        XFillRectangle(obt_display, pm, gc, 0, 6, w, h - r - 6);
-        XFillRectangle(obt_display, pm, gc, r, h - r, w - 2 * r, r);
-        XFillArc(obt_display, pm, gc,
-                 0, h - 2 * r, 2 * r, 2 * r, 11520, 5760);
-        XFillArc(obt_display, pm, gc,
-                 w - 2 * r, h - 2 * r, 2 * r, 2 * r, 17280, 5760);
-    } else {
-        XFillRectangle(obt_display, pm, gc, 0, 6, MAX(1, w), MAX(0, h - 6));
-    }
+    /* straight edges down to the square bottom (macOS X: only the top
+       corners are rounded) */
+    XFillRectangle(obt_display, pm, gc, 0, 6, MAX(1, w), MAX(0, h - 6));
 
     XFreeGC(obt_display, gc);
     return pm;
@@ -427,6 +417,9 @@ void frame_adjust_shape_kind(ObFrame *self, int kind)
         /* a window zoomed/fully maximized keeps square corners, like
            macOS X */
         if (self->max_horz && self->max_vert) r = 0;
+        /* windows with the compact caption (dialogs, utility windows)
+           have square corners */
+        if (wm_compact(self)) r = 0;
 
         if (r > 0) {
             Pixmap pm = wm_rounded_frame_mask(self->area.width,

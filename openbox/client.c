@@ -1930,15 +1930,14 @@ static void client_setup_default_decor_and_functions(ObClient *self)
                 self->functions &= ~OB_CLIENT_FUNC_RESIZE;
             if (! (self->mwmhints.functions & OB_MWM_FUNC_MOVE))
                 self->functions &= ~OB_CLIENT_FUNC_MOVE;
-            /* dont let mwm hints kill any buttons
-               if (! (self->mwmhints.functions & OB_MWM_FUNC_ICONIFY))
-               self->functions &= ~OB_CLIENT_FUNC_ICONIFY;
-               if (! (self->mwmhints.functions & OB_MWM_FUNC_MAXIMIZE))
-               self->functions &= ~OB_CLIENT_FUNC_MAXIMIZE;
-            */
-            /* dont let mwm hints kill the close button
-               if (! (self->mwmhints.functions & MwmFunc_Close))
-               self->functions &= ~OB_CLIENT_FUNC_CLOSE; */
+            /* WindowServerWM: like macOS, the MWM function bits drive the
+               traffic lights — a window that may not be iconified/maximized
+               shows its yellow/green button with the disabled art. The
+               close button always stays available. */
+            if (! (self->mwmhints.functions & OB_MWM_FUNC_ICONIFY))
+                self->functions &= ~OB_CLIENT_FUNC_ICONIFY;
+            if (! (self->mwmhints.functions & OB_MWM_FUNC_MAXIMIZE))
+                self->functions &= ~OB_CLIENT_FUNC_MAXIMIZE;
         }
     }
 
