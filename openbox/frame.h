@@ -214,6 +214,10 @@ void frame_free(ObFrame *self);
 void frame_show(ObFrame *self);
 void frame_hide(ObFrame *self);
 void frame_adjust_theme(ObFrame *self);
+/*! WindowServerWM fork: recompute the caption metrics (compact or full)
+    and re-layout the frame — the compact caption can be requested at any
+    time with the _LYNX_WM_COMPACT_CAPTION property. */
+void frame_update_metrics(ObFrame *self);
 #ifdef SHAPE
 void frame_adjust_shape_kind(ObFrame *self, int kind);
 #endif

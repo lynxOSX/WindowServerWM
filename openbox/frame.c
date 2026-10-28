@@ -59,8 +59,7 @@ static void layout_title(ObFrame *self);
 
 static gboolean wm_compact(const ObFrame *self)
 {
-    return self->client->type == OB_CLIENT_TYPE_DIALOG ||
-           self->client->type == OB_CLIENT_TYPE_UTILITY;
+    return client_wm_compact(self->client);
 }
 
 /* the caption's button size: 12 px in the compact caption, the theme's
@@ -477,6 +476,16 @@ void frame_adjust_shape(ObFrame *self)
   frame_adjust_shape_kind(self, ShapeInput);
 #endif
 #endif
+}
+
+void frame_update_metrics(ObFrame *self)
+{
+    const gint old = self->title_height;
+    wm_set_metrics(self);
+    if (self->title_height != old)
+        /* the compact caption was requested (or dropped) mid-session:
+           re-layout the frame for the new caption height */
+        frame_adjust_area(self, FALSE, TRUE, FALSE);
 }
 
 void frame_adjust_area(ObFrame *self, gboolean moved,

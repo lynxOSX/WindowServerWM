@@ -1,11 +1,4 @@
-# Openbox
-
-Copyright (C) 2004  Mikael Magnusson
-Copyright (C) 2002  Dana Jansens
-
----------------------------------------------------------------------------
-
-# WindowServerWM — lynxOS fork of Openbox
+# WindowServerWM — Openbox
 
 The window manager of lynxOS: macOS X-like window management. Built on the
 upstream openbox base, with:
@@ -18,8 +11,8 @@ caption-strip nine-slice, traffic-light PNGs per state, centered title):
 - **No preferences, no user configuration.** The configuration is a system
   asset read from a hardcoded location, and so is the theme:
 
-      /Library/WindowServerWM/rc.xml          the configuration
-      /Library/WindowServerWM/Themes/<name>/  themes (active: "WindowServer")
+      /System/Library/CoreServices/WindowServerWM/rc.xml      the configuration
+      /System/Library/CoreServices/WindowServerWM/themes/<name>/  themes (active: "WindowServer")
 
   The default menu no longer runs obconf or carries the other desktops'
   settings entries. For development outside lynxOS there are environment
@@ -32,8 +25,8 @@ caption-strip nine-slice, traffic-light PNGs per state, centered title):
   nothing on the right); the title is centered in the whole bar by
   openbox/frame.c (layout_title), and slides out from under the buttons if
   it would overlap them. When the asset pack is present
-  (themes/WindowServer/openbox-3/assets/, attribution in assets/README,
-  art from https://gitgud.io/x6shell/aurora), obrender/theme.c draws the
+  (themes/WindowServer/openbox-3/assets/, attribution in assets/README),
+  obrender/theme.c draws the
   titlebar as cougar's caption strip (nine-slice) and the traffic lights as
   cougar pngs per state, with
   the header height and button metrics from aurora's properties.ini
@@ -52,15 +45,15 @@ caption-strip nine-slice, traffic-light PNGs per state, centered title):
 
 - Real assets/layout work continues as the lynxOS desktop components land.
 
----------------------------------------------------------------------------
+# Credits
+Art: https://gitgud.io/x6shell/aurora
+Openbox Window Manager: https://github.com/danakj/openbox
 
 ----
-
     This software is OSI Certified Open Source Software.
     OSI Certified is a certification mark of the Open Source Initiative.
 
 ----
-
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -73,3 +66,6 @@ caption-strip nine-slice, traffic-light PNGs per state, centered title):
 
     See the COPYING file for a copy of the GNU General Public License.
 
+---
+Copyright (C) 2004  Mikael Magnusson
+Copyright (C) 2002  Dana Jansens

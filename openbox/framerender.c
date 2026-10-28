@@ -34,12 +34,13 @@ static void framerender_close(ObFrame *self, RrAppearance *a);
 
 /* WindowServerWM fork: position the traffic lights on the caption strip
    (the artwork's metrics); upstream used paddingy + 1. The compact caption
-   of dialog/utility windows is a 14 px strip with 12 px buttons centered
-   in it — must match openbox/frame.c. */
+   (utility windows and windows with _LYNX_WM_COMPACT_CAPTION) is a 14 px
+   strip with 12 px buttons centered in it — must match openbox/frame.c. */
 static gboolean wm_compact(const ObFrame *self)
 {
-    return self->client->type == OB_CLIENT_TYPE_DIALOG ||
-           self->client->type == OB_CLIENT_TYPE_UTILITY;
+    /* must agree with the frame — same predicate, single source of
+       truth in client.c */
+    return client_wm_compact(self->client);
 }
 
 static gint wm_button_size(const ObFrame *self)

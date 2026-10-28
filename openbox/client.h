@@ -137,6 +137,10 @@ struct _ObClient
     /*! The type of window (what its function is) */
     ObClientType type;
 
+    /*! WindowServerWM fork: the app explicitly asked for the compact
+        caption (macOS X's small titlebar) with the
+        _LYNX_WM_COMPACT_CAPTION property. */
+    gboolean wm_compact_caption;
     /*! Position and size of the window
       This will not always be the actual position of the window on screen, it
       is, rather, the position requested by the client, to which the window's
@@ -362,6 +366,12 @@ gboolean client_should_show(ObClient *self);
   Some windows (desktops, docks, splash screens) have special rules applied
   to them in a number of places regarding focus or user interaction. */
 gboolean client_normal(ObClient *self);
+
+/*! WindowServerWM fork: returns if the window gets the compact caption
+  (macOS X's small titlebar) — utility windows and windows that ask for
+  it with the _LYNX_WM_COMPACT_CAPTION property. Both frame.c and
+  framerender.c must decide compactness through this. */
+gboolean client_wm_compact(const ObClient *self);
 
 /*! Returns if the window is one of an application's helper windows
   (utilty, menu, etc) */

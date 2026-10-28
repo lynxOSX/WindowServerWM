@@ -54,6 +54,7 @@
 
 #include <glib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 
 /*! The event mask to grab on client windows */
 #define CLIENT_EVENTMASK (PropertyChangeMask | StructureNotifyMask | \
@@ -1589,6 +1590,17 @@ void client_get_mwm_hints(ObClient *self)
     }
 }
 
+/*! WindowServerWM fork: windows with the compact caption (macOS X's small
+    titlebar): utility windows and windows that explicitly ask for it with
+    the _LYNX_WM_COMPACT_CAPTION property; dialogs get the full caption
+    like regular windows. One canonical predicate — the frame (frame.c)
+    and the renderer (framerender.c) must always agree. */
+gboolean client_wm_compact(const ObClient *self)
+{
+    return self->type == OB_CLIENT_TYPE_UTILITY ||
+           self->wm_compact_caption;
+}
+
 void client_get_type_and_transientness(ObClient *self)
 {
     guint num, i;
@@ -1643,6 +1655,30 @@ void client_get_type_and_transientness(ObClient *self)
             self->type = OB_CLIENT_TYPE_DIALOG;
         else
             self->type = OB_CLIENT_TYPE_NORMAL;
+    }
+
+    /* WindowServerWM fork: an app may explicitly ask for the compact
+       caption (macOS X's small titlebar) with the _LYNX_WM_COMPACT_CAPTION
+       cardinal property; dialogs no longer get it implicitly. */
+    self->wm_compact_caption = FALSE;
+    {
+        const Atom a = XInternAtom(obt_display,
+                                   "_LYNX_WM_COMPACT_CAPTION", False);
+        Atom rtype;
+        int rformat;
+        gulong nitems, bytes_left;
+        guchar *data = NULL;
+        if (a != None &&
+            XGetWindowProperty(obt_display, self->window, a, 0, 1, False,
+                               XA_CARDINAL, &rtype, &rformat, &nitems,
+                               &bytes_left, &data) == Success && data)
+        {
+            if (nitems >= 1)
+                /* format 32 items are (unsigned long)s */
+                self->wm_compact_caption =
+                    rtype == XA_CARDINAL && ((gulong*)data)[0] != 0;
+            XFree(data);
+        }
     }
 
     /* then, based on our type, we can update our transientness.. */
@@ -1996,9 +2032,15 @@ void client_setup_decor_and_functions(ObClient *self, gboolean reconfig)
 
     client_change_allowed_actions(self);
 
-    if (reconfig)
+    if (reconfig) {
+        /* WindowServerWM fork: the compact caption (macOS X's small
+           titlebar) can be requested at any time with the
+           _LYNX_WM_COMPACT_CAPTION property — recompute the caption
+           metrics, then reconfigure so decorations update. */
+        frame_update_metrics(self->frame);
         /* reconfigure to make sure decorations are updated */
         client_reconfigure(self, FALSE);
+    }
 }
 
 static void client_change_allowed_actions(ObClient *self)
@@ -2820,6 +2862,14 @@ gboolean client_show(ObClient *self)
         mouse_replay_pointer();
 
         frame_show(self->frame);
+        /* WindowServerWM fork: the X server discards a client's contents
+           while the window is unviewable (being framed, iconified), and
+           the expose that would make the client repaint its first frame
+           can be lost (e.g. Qt windows mapped already-modal or popups
+           mapped under a pointer grab — they come up black). A clear
+           with exposures=True generates the missing Expose; the client's
+           background is None, so nothing on screen is erased. */
+        XClearArea(obt_display, self->window, 0, 0, 0, 0, True);
         show = TRUE;
 
         /* According to the ICCCM (sec 4.1.3.1) when a window is not visible,
