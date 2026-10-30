@@ -1661,6 +1661,7 @@ void client_get_type_and_transientness(ObClient *self)
        caption (macOS X's small titlebar) with the _LYNX_WM_COMPACT_CAPTION
        cardinal property; dialogs no longer get it implicitly. */
     self->wm_compact_caption = FALSE;
+    self->wm_unified_toolbar = FALSE;
     {
         const Atom a = XInternAtom(obt_display,
                                    "_LYNX_WM_COMPACT_CAPTION", False);
@@ -1676,6 +1677,27 @@ void client_get_type_and_transientness(ObClient *self)
             if (nitems >= 1)
                 /* format 32 items are (unsigned long)s */
                 self->wm_compact_caption =
+                    rtype == XA_CARDINAL && ((gulong*)data)[0] != 0;
+            XFree(data);
+        }
+    }
+    {
+        /* the unified look: the title bar flows into the client's toolbar
+           with no separator line (textured windows — Finder, System
+           Preferences, ...). */
+        const Atom a = XInternAtom(obt_display,
+                                   "_LYNX_WM_UNIFIED_TOOLBAR", False);
+        Atom rtype;
+        int rformat;
+        gulong nitems, bytes_left;
+        guchar *data = NULL;
+        if (a != None &&
+            XGetWindowProperty(obt_display, self->window, a, 0, 1, False,
+                               XA_CARDINAL, &rtype, &rformat, &nitems,
+                               &bytes_left, &data) == Success && data)
+        {
+            if (nitems >= 1)
+                self->wm_unified_toolbar =
                     rtype == XA_CARDINAL && ((gulong*)data)[0] != 0;
             XFree(data);
         }

@@ -141,6 +141,11 @@ struct _ObClient
         caption (macOS X's small titlebar) with the
         _LYNX_WM_COMPACT_CAPTION property. */
     gboolean wm_compact_caption;
+
+    /*! WindowServerWM fork: the app asked for the unified look (macOS X's
+        textured windows): the title bar flows into the client's toolbar
+        with no separator line (_LYNX_WM_UNIFIED_TOOLBAR). */
+    gboolean wm_unified_toolbar;
     /*! Position and size of the window
       This will not always be the actual position of the window on screen, it
       is, rather, the position requested by the client, to which the window's

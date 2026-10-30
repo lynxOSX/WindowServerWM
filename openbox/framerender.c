@@ -156,10 +156,23 @@ void framerender_frame(ObFrame *self)
         XClearWindow(obt_display, self->rgripbottom);
 
         /* don't use the separator color for shaded windows */
-        if (!self->client->shaded)
-            px = (self->focused ?
-                  RrColorPixel(ob_rr_theme->title_separator_focused_color) :
-                  RrColorPixel(ob_rr_theme->title_separator_unfocused_color));
+        if (!self->client->shaded) {
+            if (self->client->wm_unified_toolbar) {
+                /* WindowServerWM fork: the unified look — the caption
+                   flows into the client's toolbar, so the "separator" is
+                   painted with the title background's continuing color
+                   (the gradient's last color) instead of the separator. */
+                px = (self->focused ?
+                      RrColorPixel(ob_rr_theme->a_focused_title
+                                       ->surface.secondary) :
+                      RrColorPixel(ob_rr_theme->a_unfocused_title
+                                       ->surface.primary));
+            } else {
+                px = (self->focused ?
+                      RrColorPixel(ob_rr_theme->title_separator_focused_color) :
+                      RrColorPixel(ob_rr_theme->title_separator_unfocused_color));
+            }
+        }
 
         XSetWindowBackground(obt_display, self->titlebottom, px);
         XClearWindow(obt_display, self->titlebottom);
